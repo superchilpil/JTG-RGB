@@ -39,7 +39,6 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Border Grid.Column="0" Background="#141720" BorderBrush="#282C38" BorderThickness="0,0,1,0">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <DockPanel Margin="18,20,16,18">
                 <StackPanel DockPanel.Dock="Top">
                     <StackPanel Orientation="Horizontal" Margin="2,0,0,28">
@@ -85,7 +84,6 @@
                     <TextBlock Text="JTG-RGB • EARLY DEVELOPMENT" Foreground="#697185" FontSize="9" Margin="12,18,0,0"/>
                 </StackPanel>
             </DockPanel>
-            </ScrollViewer>
         </Border>
         <Grid Grid.Column="1">
             <Grid.RowDefinitions><RowDefinition Height="76"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -106,7 +104,7 @@
                     </StackPanel>
                 </Grid>
             </Border>
-            <ScrollViewer x:Name="DashboardScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer x:Name="DashboardScroll" Grid.Row="1" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False">
                 <StackPanel Margin="30,25,30,30">
                     <Border CornerRadius="18" Padding="25" Margin="0,0,0,22" ClipToBounds="True">
                         <Border.Background>
@@ -185,7 +183,7 @@
                     <TextBlock x:Name="FooterStatus" Text="Ready • Hardware backend not yet configured" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,24,0,0"/>
                 </StackPanel>
             </ScrollViewer>
-            <ScrollViewer x:Name="SecondaryPageScrollViewer" Grid.Row="1" Margin="30,25,30,30" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+            <ScrollViewer x:Name="SecondaryPageScrollViewer" Grid.Row="1" Margin="30,25,30,30" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False" Visibility="Collapsed">
                 <ContentControl x:Name="SecondaryPageHost"/>
             </ScrollViewer>
         </Grid>
