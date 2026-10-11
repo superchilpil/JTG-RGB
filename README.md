@@ -37,9 +37,24 @@ PawnIO is a separate driver dependency; its own license and redistribution terms
 
 SignalRGB is an independent product and is not affiliated with JTG-RGB. Compatibility with its effect format is an exploratory goal, not a claim of complete compatibility. Third-party effects will not be bundled unless their terms permit redistribution.
 
-## Status
+## Current implementation status
 
-The repository is at the project setup stage. The implementation and supported hardware list will be documented as they are tested.
+- The WPF shell and Windows x64 build workflow are in place.
+- The first OpenRGB SDK integration is implemented for the OpenRGB SDK protocol version 5: connect to localhost, enumerate controllers, request a hardware rescan, and send a selected static color to individual controllers or all detected controllers.
+- The Devices page and Settings page expose connection and PawnIO-registration status.
+- If a compatible backend is placed at `vendor/OpenRGB/OpenRGB.exe` beside the published app, JTG-RGB can attempt to launch it with `--server`. This repository does **not** currently include the OpenRGB binary or PawnIO driver.
+- PawnIO status is only a registry/service-registration check. It does not prove the driver is loaded or that a specific motherboard/RAM device is supported.
+
+### Testing the current integration
+
+1. Install a compatible Windows x64 OpenRGB build. The OpenRGB 1.0 release-candidate 2 Windows PawnIO build is the current intended compatibility target for the initial SDK-v5 integration.
+2. Install PawnIO separately from its official source if your hardware requires it. Do not download or install kernel drivers from unofficial mirrors.
+3. Start OpenRGB and enable its SDK server on the local default endpoint, `127.0.0.1:6742` (or run OpenRGB with `--server`).
+4. Open JTG-RGB and use **Devices → Connect / refresh devices**. The app should list controllers returned by OpenRGB. Select a color on the Dashboard to send it to all detected controllers, or use **Apply selected color** on a device card.
+
+Some motherboard and memory controllers require OpenRGB to run elevated. JTG-RGB does not silently elevate or install drivers. For the first test, run OpenRGB yourself with the permissions required by your hardware; JTG-RGB connects to its SDK server.
+
+The bundled-backend path is a development hook only. Before shipping a bundled release, pin a tested OpenRGB build, include its applicable license notices and corresponding source offer/source distribution, and separately resolve PawnIO redistribution terms. See `vendor/OpenRGB/README.md`.
 
 ## License
 
