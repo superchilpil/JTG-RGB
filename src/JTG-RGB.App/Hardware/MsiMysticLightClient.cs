@@ -229,9 +229,12 @@ public sealed class MsiMysticLightClient : IDisposable
             var supportedStyles = device.LedStyles.Count > (int)ledIndex ? device.LedStyles[(int)ledIndex] : [];
             // Mystic Light commonly requires switching the zone to a color-capable style
             // before MLAPI_SetLedColor takes effect. Prefer Static, then Direct Lighting Control.
-            var targetStyle = supportedStyles.FirstOrDefault(s => string.Equals(s, "Static", StringComparison.OrdinalIgnoreCase))
+            var targetStyle = supportedStyles.FirstOrDefault(s => s.Contains("static", StringComparison.OrdinalIgnoreCase))
                 ?? supportedStyles.FirstOrDefault(s => string.Equals(s, "Direct Lighting Control", StringComparison.OrdinalIgnoreCase));
-            if (targetStyle is not null && _setLedStyle is not null)
+            if (targetStyle is null)
+                throw new InvalidOperationException($"MSI SDK did not report a supported static/direct-color style for {deviceType}, LED {ledIndex}. Reported styles: {(supportedStyles.Count == 0 ? "(none; SDK style metadata unavailable)" : string.Join(", ", supportedStyles))}. The zone may not support direct color changes through this SDK.");
+            if (_setLedStyle is null)
+                throw new InvalidOperationException("This MSI SDK DLL does not export MLAPI_SetLedStyle, so JTG-RGB cannot switch the zone into a color-capable mode.");
             {
                 var styleStatus = _setLedStyle(deviceType, ledIndex, targetStyle);
                 if (styleStatus != Ok)
