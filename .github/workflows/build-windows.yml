@@ -1,0 +1,41 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'JTG-RGB.sln'
+      - '.github/workflows/build-windows.yml'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build
+        run: dotnet build JTG-RGB.sln -c Release
+
+      - name: Publish portable folder
+        run: dotnet publish src/JTG-RGB.App/JTG-RGB.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/JTG-RGB
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JTG-RGB-win-x64
+          path: publish/JTG-RGB/
+          if-no-files-found: error
