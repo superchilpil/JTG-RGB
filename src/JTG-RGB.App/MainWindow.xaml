@@ -89,7 +89,7 @@
                     </StackPanel>
                 </Grid>
             </Border>
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer x:Name="DashboardScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="30,25,30,30">
                     <Border CornerRadius="18" Padding="25" Margin="0,0,0,22" ClipToBounds="True">
                         <Border.Background>
@@ -166,6 +166,7 @@
                     <TextBlock x:Name="FooterStatus" Text="Ready • Hardware backend not yet configured" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,24,0,0"/>
                 </StackPanel>
             </ScrollViewer>
+            <ContentControl x:Name="SecondaryPageHost" Grid.Row="1" Margin="30,25,30,30" Visibility="Collapsed"/>
         </Grid>
     </Grid>
 </Window>
