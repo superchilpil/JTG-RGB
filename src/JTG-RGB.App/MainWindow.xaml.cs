@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 
 namespace JtgRgb.App;
@@ -102,7 +103,7 @@ public partial class MainWindow : Window
                 Padding = new Thickness(14),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch,
-                Background = new SolidColorBrush(Color.FromRgb(27, 30, 41))
+                Background = new SolidColorMakeBrush(Color.FromRgb(27, 30, 41))
             };
             var panel = new StackPanel();
             var swatch = new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(effect.Item3)), Margin = new Thickness(0, 0, 0, 12) };
