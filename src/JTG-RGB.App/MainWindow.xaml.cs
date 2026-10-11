@@ -103,10 +103,10 @@ public partial class MainWindow : Window
                 Padding = new Thickness(14),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch,
-                Background = new SolidColorMakeBrush(Color.FromRgb(27, 30, 41))
+                Background = new SolidColorBrush(Color.FromRgb(27, 30, 41))
             };
             var panel = new StackPanel();
-            var swatch = new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = new SolidColorMakeBrush((Color)ColorConverter.ConvertFromString(effect.Item3)), Margin = new Thickness(0, 0, 0, 12) };
+            var swatch = new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(effect.Item3)), Margin = new Thickness(0, 0, 0, 12) };
             panel.Children.Add(swatch);
             panel.Children.Add(new TextBlock { Text = effect.Item1, FontWeight = FontWeights.SemiBold, FontSize = 13, Foreground = Brushes.White });
             panel.Children.Add(new TextBlock { Text = effect.Item2, TextWrapping = TextWrapping.Wrap, FontSize = 10, Foreground = MakeBrush("#969EB1"), Margin = new Thickness(0, 5, 0, 0) });
