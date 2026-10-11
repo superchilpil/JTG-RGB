@@ -31,8 +31,8 @@
                             <TextBlock Text="J" FontSize="23" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
                         </Border>
                         <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="JTG-RGB" FontSize="19" FontWeight="Bold" CharacterSpacing="40"/>
-                            <TextBlock Text="LIGHTING CONTROL" FontSize="9" Foreground="{StaticResource MutedBrush}" FontWeight="SemiBold" CharacterSpacing="110"/>
+                            <TextBlock Text="JTG-RGB" FontSize="19" FontWeight="Bold"/>
+                            <TextBlock Text="LIGHTING CONTROL" FontSize="9" Foreground="{StaticResource MutedBrush}" FontWeight="SemiBold"/>
                         </StackPanel>
                     </StackPanel>
                     <TextBlock Text="WORKSPACE" Style="{StaticResource SectionLabel}" Margin="12,0,0,8"/>
@@ -103,7 +103,7 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center" MaxWidth="650">
                                 <Border Background="#3A315D" CornerRadius="5" Padding="8,4" HorizontalAlignment="Left" Margin="0,0,0,12">
-                                    <TextBlock Text="YOUR LIGHTING. YOUR RULES." FontSize="9" FontWeight="Bold" CharacterSpacing="100"/>
+                                    <TextBlock Text="YOUR LIGHTING. YOUR RULES." FontSize="9" FontWeight="Bold"/>
                                 </Border>
                                 <TextBlock Text="One canvas. All your RGB." FontSize="29" FontWeight="Bold" TextWrapping="Wrap"/>
                                 <TextBlock Text="Bring your compatible devices together, explore effects, and make your setup yours." Foreground="#B6B6CF" FontSize="13" TextWrapping="Wrap" Margin="0,9,20,20"/>
