@@ -5,8 +5,8 @@ using System.Text;
 namespace JtgRgb.App.Hardware;
 
 /// <summary>
-/// Optional adapter for MSI's official Mystic Light SDK.
-/// The native MSI SDK is not redistributed by JTG-RGB; users select the x64 SDK DLL locally.
+/// Adapter for MSI's Mystic Light SDK. The SDK DLL can be packaged beside the app,
+/// or selected by the user when a redistribution-approved copy is not included.
 /// </summary>
 public sealed class MsiMysticLightClient : IDisposable
 {
@@ -24,6 +24,17 @@ public sealed class MsiMysticLightClient : IDisposable
     public bool IsInitialized => _library != IntPtr.Zero;
     public string? SdkPath => _sdkPath;
     public IReadOnlyList<MsiLightingDevice> Devices => _devices;
+
+    public static string? FindBundledSdkPath()
+    {
+        var baseDirectory = AppContext.BaseDirectory;
+        foreach (var fileName in new[] { "MysticLight_SDK_x64.dll", "MysticLight_SDK.dll" })
+        {
+            var candidate = Path.Combine(baseDirectory, fileName);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
 
     public static string? LoadSavedSdkPath()
     {
