@@ -1030,3 +1030,4 @@ public partial class MainWindow : Window
                 MessageBoxImage.Warning);
         }
     }
+}
