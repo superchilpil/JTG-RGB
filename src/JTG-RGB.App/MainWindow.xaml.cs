@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
         {
             FooterStatus.Text = "Ready • OpenRGB integration available";
             await UpdatePawnIoStatusAsync();
+            await HandleMsiMotherboardStartupAsync();
         };
         Closed += async (_, _) => { _msi.Dispose(); await _backend.DisposeAsync(); };
     }
@@ -110,7 +112,7 @@ public partial class MainWindow : Window
         var msiStack = new StackPanel();
         msiStack.Children.Add(SmallHeading("MSI MYSTIC LIGHT BACKEND"));
         msiStack.Children.Add(Heading("MSI motherboard lighting"));
-        msiStack.Children.Add(Body("Uses MSI's official Mystic Light SDK when you provide the native x64 SDK DLL. The SDK is not bundled by JTG-RGB; MSI Center/Mystic Light must be installed and running."));
+        msiStack.Children.Add(Body("Uses MSI's native Mystic Light SDK when available. MSI Center must be installed with the Mystic Light feature enabled and running. A bundled SDK DLL is loaded automatically when included with the app."));
         msiStack.Children.Add(Body(_msiSdkPath is null ? "SDK path not configured." : $"SDK: {_msiSdkPath}"));
         var msiButtons = new WrapPanel();
         msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
@@ -253,7 +255,7 @@ public partial class MainWindow : Window
         var msiStack = new StackPanel();
         msiStack.Children.Add(SmallHeading("MSI MYSTIC LIGHT BACKEND"));
         msiStack.Children.Add(Heading("MSI SDK integration"));
-        msiStack.Children.Add(Body("JTG-RGB can use MSI's official SDK independently of OpenRGB. Download the SDK from MSI's developer page, extract it, then select MysticLight_SDK_x64.dll. MSI Center/Mystic Light must be installed and running. The native SDK is not redistributed with JTG-RGB."));
+        msiStack.Children.Add(Body("JTG-RGB can use MSI's Mystic Light SDK independently of OpenRGB. If the SDK DLL is packaged beside JTG-RGB, it is detected automatically; otherwise choose the DLL from MSI's official SDK package. MSI Center must be installed with the Mystic Light feature enabled and running."));
         msiStack.Children.Add(Body(_msiSdkPath is null ? "SDK path not configured." : $"SDK: {_msiSdkPath}"));
         var msiButtons = new WrapPanel();
         msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
@@ -497,6 +499,59 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task HandleMsiMotherboardStartupAsync()
+    {
+        if (!IsMsiMotherboardDetected()) return;
+
+        var bundledSdk = MsiMysticLightClient.FindBundledSdkPath();
+        if (bundledSdk is not null)
+        {
+            _msiSdkPath = bundledSdk;
+            try
+            {
+                _msiDevices = await Task.Run(() => _msi.Connect(bundledSdk));
+                FooterStatus.Text = $"MSI motherboard detected • Mystic Light connected ({_msiDevices.Count} device type(s))";
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException or InvalidDataException or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException or PlatformNotSupportedException or MarshalDirectiveException or ArgumentException)
+            {
+                FooterStatus.Text = "MSI motherboard detected • Mystic Light setup required";
+            }
+        }
+
+        var answer = MessageBox.Show(
+            "JTG-RGB detected an MSI motherboard. To control its motherboard lighting, install MSI Center and enable/install the Mystic Light feature, then keep it running. If MSI Center is already installed, make sure Mystic Light is installed inside MSI Center.\n\nOpen MSI's official Mystic Light page now?",
+            "MSI motherboard detected",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Information);
+
+        if (answer == MessageBoxResult.Yes)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo("https://www.msi.com/Landing/mystic-light-rgb-gaming-pc/download") { UseShellExecute = true });
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                MessageBox.Show("Open MSI's Mystic Light download page manually: https://www.msi.com/Landing/mystic-light-rgb-gaming-pc/download", "JTG-RGB", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+    }
+
+    private static bool IsMsiMotherboardDetected()
+    {
+        try
+        {
+            using var bios = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DESCRIPTION\System\BIOS");
+            var manufacturer = bios?.GetValue("BaseBoardManufacturer")?.ToString() ?? string.Empty;
+            return manufacturer.Contains("MSI", StringComparison.OrdinalIgnoreCase) ||
+                   manufacturer.Contains("Micro-Star", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (System.Security.SecurityException)
+        {
+            return false;
+        }
+    }
     private void ChooseMsiSdkDll()
     {
         var dialog = new OpenFileDialog
