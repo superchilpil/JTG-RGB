@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using JtgRgb.App.Hardware;
 
