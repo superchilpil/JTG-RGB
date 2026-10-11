@@ -103,7 +103,7 @@ public partial class MainWindow : Window
                 Padding = new Thickness(14),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch,
-                Background = new SolidColorMakeBrush(Color.FromRgb(27, 30, 41))
+                Background = new SolidColorBrush(Color.FromRgb(27, 30, 41))
             };
             var panel = new StackPanel();
             var swatch = new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(effect.Item3)), Margin = new Thickness(0, 0, 0, 12) };
@@ -241,7 +241,7 @@ public partial class MainWindow : Window
     private static TextBlock SmallHeading(string text) => new() { Text = text, FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brush("#969EB1"), Margin = new Thickness(0, 0, 0, 10) };
     private static TextBlock Body(string text) => new() { Text = text, FontSize = 11, Foreground = Brush("#969EB1"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 12), MaxWidth = 850 };
     private static Border IconTile(string symbol, string background, string foreground) => new() { Width = 52, Height = 52, CornerRadius = new CornerRadius(14), Background = Brush(background), Child = new TextBlock { Text = symbol, FontSize = 24, Foreground = Brush(foreground), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, Margin = new Thickness(0, 0, 0, 12) };
-    private static SolidColorBrush Brush(string color) => new((Color)ColorConverter.ConvertFromString(color));
+    private static SolidColorBrush MakeBrush(string color) => new((Color)ColorConverter.ConvertFromString(color));
     private static Button ActionButton(string text, RoutedEventHandler click, bool primary, Brush? background = null)
     {
         var button = new Button { Content = text, Padding = new Thickness(14, 9, 14, 9), Margin = new Thickness(0, 7, 8, 0), HorizontalAlignment = HorizontalAlignment.Left };
