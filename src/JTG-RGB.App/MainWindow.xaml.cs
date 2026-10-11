@@ -16,6 +16,9 @@ public partial class MainWindow : Window
 {
     private string _selectedColor = "#8B6CFF";
     private string _selectedEffect = "Static Color";
+    private string _effectColorA = "#8B6CFF";
+    private string _effectColorB = "#36C5F0";
+    private StackPanel? _effectEditorHost;
     private string _selectedProfile = "Default";
     private readonly OpenRgbBackendManager _backend = new();
     private readonly MsiMysticLightClient _msi = new();
@@ -141,9 +144,18 @@ public partial class MainWindow : Window
     private UIElement BuildEffectsPage()
     {
         var root = PageStack();
-        root.Children.Add(SectionHeading("Effects library", "Start with simple, customizable lighting effects. Audio-reactive effects are intentionally not a priority."));
-        var palette = new WrapPanel { Margin = new Thickness(0, 4, 0, 18) };
-        foreach (var effect in new[] { ("Static Color", "A clean, consistent color across your devices.", "#8B6CFF"), ("Color Cycle", "A smooth transition through your chosen colors.", "#36C5F0"), ("Breathing", "A gentle pulse between dim and bright.", "#42D392"), ("Rainbow Wave", "A moving spectrum across the lighting canvas.", "#FF637D"), ("Gradient", "Blend two or more colors across your setup.", "#F4B94F"), ("Ambient", "A subtle low-motion lighting preset.", "#F4F5FA") })
+        root.Children.Add(SectionHeading("Effects library", "Choose an effect to open its settings. Configure colors before applying; dynamic animation support is being built in stages."));
+        var palette = new WrapPanel { Margin = new Thickness(0, 4, 0, 8) };
+        var effects = new[]
+        {
+            ("Static Color", "One color across supported devices.", "#8B6CFF"),
+            ("Color Cycle", "Cycle smoothly through your chosen colors.", "#36C5F0"),
+            ("Breathing", "Pulse between dim and bright.", "#42D392"),
+            ("Rainbow Wave", "Move a spectrum across supported LEDs.", "#FF637D"),
+            ("Gradient", "Blend two colors across available LED entries.", "#F4B94F"),
+            ("Ambient", "A calm, low-motion color preset.", "#F4F5FA")
+        };
+        foreach (var effect in effects)
         {
             var button = new Button
             {
@@ -153,11 +165,12 @@ public partial class MainWindow : Window
                 Padding = new Thickness(14),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch,
-                Background = new SolidColorBrush(Color.FromRgb(27, 30, 41))
+                Background = MakeBrush("#1B1E29"),
+                BorderBrush = MakeBrush(_selectedEffect == effect.Item1 ? "#8B6CFF" : "#292E3B"),
+                BorderThickness = new Thickness(_selectedEffect == effect.Item1 ? 2 : 1)
             };
             var panel = new StackPanel();
-            var swatch = new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(effect.Item3)), Margin = new Thickness(0, 0, 0, 12) };
-            panel.Children.Add(swatch);
+            panel.Children.Add(new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = MakeBrush(effect.Item3), Margin = new Thickness(0, 0, 0, 12) });
             panel.Children.Add(new TextBlock { Text = effect.Item1, FontWeight = FontWeights.SemiBold, FontSize = 13, Foreground = Brushes.White });
             panel.Children.Add(new TextBlock { Text = effect.Item2, TextWrapping = TextWrapping.Wrap, FontSize = 10, Foreground = MakeBrush("#969EB1"), Margin = new Thickness(0, 5, 0, 0) });
             button.Content = panel;
@@ -165,15 +178,194 @@ public partial class MainWindow : Window
             {
                 _selectedEffect = effect.Item1;
                 ActiveEffectText.Text = _selectedEffect;
-                FooterStatus.Text = $"Effect selected: {_selectedEffect} • Rendering and hardware output are not connected yet";
+                ShowPage("Effects");
+                FooterStatus.Text = $"Editing effect: {_selectedEffect}";
             };
             palette.Children.Add(button);
         }
         root.Children.Add(palette);
+
+        var editorCard = Card();
+        var editor = new StackPanel();
+        editor.Children.Add(SmallHeading("EFFECT SETTINGS"));
+        editor.Children.Add(Heading(_selectedEffect));
+        editor.Children.Add(Body(_selectedEffect switch
+        {
+            "Static Color" => "Pick a color and apply it to connected hardware.",
+            "Gradient" => "Choose the start and end colors. Apply creates a linear color blend across each device's reported color entries. Actual results depend on the controller's LED mapping.",
+            "Color Cycle" => "Choose the colors for the cycle. Dynamic cycling is not implemented yet; Apply currently sets the first color.",
+            "Breathing" => "Choose the pulse color. Animated brightness is not implemented yet; Apply currently sets the selected color.",
+            "Rainbow Wave" => "Choose the base color preview. Animated rainbow output is not implemented yet.",
+            _ => "Choose a calm ambient color. Dynamic ambient behavior is not implemented yet; Apply currently sets the selected color."
+        }));
+
+        if (_selectedEffect == "Gradient")
+        {
+            editor.Children.Add(BuildEffectColorPicker("Start color", true));
+            editor.Children.Add(BuildEffectColorPicker("End color", false));
+            var preview = new Border
+            {
+                Height = 26,
+                CornerRadius = new CornerRadius(7),
+                Margin = new Thickness(0, 8, 0, 10),
+                Background = new LinearGradientBrush(
+                    (Color)ColorConverter.ConvertFromString(_effectColorA),
+                    (Color)ColorConverter.ConvertFromString(_effectColorB),
+                    new System.Windows.Point(0, 0),
+                    new System.Windows.Point(1, 0))
+            };
+            editor.Children.Add(preview);
+            editor.Children.Add(ActionButton("Apply gradient", async (_, _) => await ApplyGradientEffectAsync(), true));
+        }
+        else
+        {
+            editor.Children.Add(BuildEffectColorPicker("Effect color", true));
+            editor.Children.Add(ActionButton("Apply effect", async (_, _) => await ApplyColorAsync(_effectColorA), true));
+        }
+
+        _effectEditorHost = editor;
+        editorCard.Child = editor;
+        root.Children.Add(editorCard);
+
         var note = Card();
-        note.Child = new TextBlock { Text = "COMMUNITY EFFECTS  •  We'll investigate compatible effect imports after the built-in effects engine is working. Imported effects will be checked for redistribution and licensing requirements.", TextWrapping = TextWrapping.Wrap, Foreground = MakeBrush("#B4B9CA"), FontSize = 12 };
+        note.Child = new TextBlock { Text = "EFFECT STATUS  •  Static Color and Gradient have hardware output paths. Color Cycle, Breathing, Rainbow Wave, and Ambient currently expose editable settings but their animated renderers are not implemented yet.", TextWrapping = TextWrapping.Wrap, Foreground = MakeBrush("#B4B9CA"), FontSize = 12 };
         root.Children.Add(note);
+        var community = Card();
+        community.Child = new TextBlock { Text = "COMMUNITY EFFECTS  •  Effect imports will be considered after the built-in rendering engine is in place, with licensing and redistribution checked first.", TextWrapping = TextWrapping.Wrap, Foreground = MakeBrush("#B4B9CA"), FontSize = 12 };
+        root.Children.Add(community);
         return root;
+    }
+
+    private UIElement BuildEffectColorPicker(string label, bool isFirstColor)
+    {
+        var current = isFirstColor ? _effectColorA : _effectColorB;
+        var section = new StackPanel { Margin = new Thickness(0, 6, 0, 10) };
+        section.Children.Add(Heading(label));
+        var row = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
+        var preview = new Border
+        {
+            Width = 30,
+            Height = 30,
+            CornerRadius = new CornerRadius(6),
+            Background = MakeBrush(current),
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        row.Children.Add(preview);
+        var hex = new TextBox
+        {
+            Text = current,
+            Width = 110,
+            Padding = new Thickness(8, 5, 8, 5),
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Background = MakeBrush("#11141B"),
+            Foreground = Brushes.White,
+            BorderBrush = MakeBrush("#34394A"),
+            ToolTip = "HEX color, for example #8B6CFF"
+        };
+        row.Children.Add(hex);
+        var applyHex = ActionButton("Use HEX", (_, _) =>
+        {
+            var candidate = hex.Text.Trim();
+            if (!candidate.StartsWith('#')) candidate = "#" + candidate;
+            if (candidate.Length != 7 || !candidate.Skip(1).All(Uri.IsHexDigit))
+            {
+                MessageBox.Show("Enter a HEX color such as #8B6CFF.", "JTG-RGB — Invalid color", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            SetEffectColor(isFirstColor, candidate.ToUpperInvariant());
+            ShowPage("Effects");
+        }, false);
+        row.Children.Add(applyHex);
+        section.Children.Add(row);
+
+        var swatches = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+        foreach (var color in Palette)
+        {
+            var swatch = ActionButton(" ", (_, _) =>
+            {
+                SetEffectColor(isFirstColor, color);
+                ShowPage("Effects");
+            }, false, MakeBrush(color));
+            swatch.Width = 30;
+            swatch.Height = 28;
+            swatch.Padding = new Thickness(0);
+            swatch.ToolTip = color;
+            swatches.Children.Add(swatch);
+        }
+        section.Children.Add(swatches);
+        return section;
+    }
+
+    private void SetEffectColor(bool isFirstColor, string color)
+    {
+        if (isFirstColor) _effectColorA = color;
+        else _effectColorB = color;
+        _selectedColor = color;
+        SelectedColorText.Text = $"Selected: {color}";
+        FooterStatus.Text = $"Effect color selected: {color}";
+    }
+
+    private async Task ApplyGradientEffectAsync()
+    {
+        try
+        {
+            var start = (Color)ColorConverter.ConvertFromString(_effectColorA);
+            var end = (Color)ColorConverter.ConvertFromString(_effectColorB);
+            var appliedOpenRgb = false;
+            var appliedMsi = false;
+
+            if (_backend.Client.IsConnected && _devices.Count > 0)
+            {
+                foreach (var device in _devices)
+                {
+                    var count = Math.Max(1, device.ColorCount > 0 ? device.ColorCount : device.LedCount);
+                    var colors = Enumerable.Range(0, count)
+                        .Select(i => InterpolateColor(start, end, count <= 1 ? 0 : (double)i / (count - 1)))
+                        .Select(c => (c.R, c.G, c.B))
+                        .ToArray();
+                    await _backend.Client.SetDeviceColorsAsync(device, colors);
+                }
+                appliedOpenRgb = true;
+            }
+
+            if (_msi.IsInitialized && _msiDevices.Count > 0)
+            {
+                await Task.Run(() =>
+                {
+                    foreach (var device in _msiDevices)
+                    {
+                        for (uint index = 0; index < device.LedCount; index++)
+                        {
+                            var c = InterpolateColor(start, end, device.LedCount <= 1 ? 0 : (double)index / (device.LedCount - 1));
+                            _msi.SetLedColor(device.Type, index, c.R, c.G, c.B);
+                        }
+                    }
+                });
+                appliedMsi = true;
+            }
+
+            if (!appliedOpenRgb && !appliedMsi)
+            {
+                FooterStatus.Text = "Gradient configured • Connect OpenRGB or MSI Mystic Light to apply it";
+                return;
+            }
+
+            FooterStatus.Text = $"Applied gradient {_effectColorA} → {_effectColorB}";
+        }
+        catch (Exception ex) when (ex is FormatException or IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException or MarshalDirectiveException or ArgumentException)
+        {
+            FooterStatus.Text = "Could not apply gradient";
+            MessageBox.Show(ex.Message, "JTG-RGB — Apply gradient", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private static Color InterpolateColor(Color start, Color end, double amount)
+    {
+        amount = Math.Clamp(amount, 0, 1);
+        return Color.FromRgb(
+            (byte)Math.Round(start.R + (end.R - start.R) * amount),
+            (byte)Math.Round(start.G + (end.G - start.G) * amount),
+            (byte)Math.Round(start.B + (end.B - start.B) * amount));
     }
 
     private UIElement BuildLayoutsPage()
