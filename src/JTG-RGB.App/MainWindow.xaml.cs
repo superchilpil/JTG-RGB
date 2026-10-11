@@ -405,21 +405,41 @@ public partial class MainWindow : Window
     private async void Color_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string color }) return;
-        _selectedColor = color;
-        SelectedColorText.Text = $"Selected: {_selectedColor}";
-        if (!_backend.Client.IsConnected || _devices.Count == 0)
+        await ApplyColorAsync(color);
+        CustomColorText.Text = _selectedColor;
+    }
+
+    private async void ApplyCustomColor_Click(object sender, RoutedEventArgs e)
+    {
+        var candidate = CustomColorText.Text.Trim();
+        if (!candidate.StartsWith('#')) candidate = "#" + candidate;
+        if (candidate.Length is not (7 or 9) ||
+            !candidate.Skip(1).All(Uri.IsHexDigit))
         {
-            FooterStatus.Text = $"Color selected: {_selectedColor} • Connect to OpenRGB to apply it";
+            MessageBox.Show("Enter a HEX color such as #8B6CFF.", "JTG-RGB — Invalid color", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
+        await ApplyColorAsync(candidate[..7].ToUpperInvariant());
+    }
+
+    private async Task ApplyColorAsync(string colorText)
+    {
         try
         {
-            var rgb = (Color)ColorConverter.ConvertFromString(_selectedColor);
+            var rgb = (Color)ColorConverter.ConvertFromString(colorText);
+            _selectedColor = $"#{rgb.R:X2}{rgb.G:X2}{rgb.B:X2}";
+            SelectedColorText.Text = $"Selected: {_selectedColor}";
+            if (!_backend.Client.IsConnected || _devices.Count == 0)
+            {
+                FooterStatus.Text = $"Color selected: {_selectedColor} • Connect to OpenRGB to apply it";
+                return;
+            }
+
             await _backend.Client.SetAllDevicesColorAsync(_devices, rgb.R, rgb.G, rgb.B);
             FooterStatus.Text = $"Applied {_selectedColor} to {_devices.Count} controller(s)";
         }
-        catch (Exception ex) when (ex is IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException)
+        catch (Exception ex) when (ex is FormatException or IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException)
         {
             FooterStatus.Text = "Could not apply color to all devices";
             MessageBox.Show(ex.Message, "JTG-RGB — Apply color", MessageBoxButton.OK, MessageBoxImage.Information);
