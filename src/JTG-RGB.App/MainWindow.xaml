@@ -180,6 +180,11 @@
                         <Button Tag="#F4F5FA" Click="Color_Click" Background="#F4F5FA" Width="42" Height="42" Padding="0" Margin="0,0,10,0" ToolTip="White"/>
                         <TextBlock x:Name="SelectedColorText" Text="Selected: #8B6CFF" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11"/>
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Custom HEX" Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBox x:Name="CustomColorText" Text="#8B6CFF" Width="105" Padding="8,6" VerticalContentAlignment="Center" Margin="0,0,8,0" ToolTip="Enter a color such as #8B6CFF"/>
+                        <Button Content="Apply color" Click="ApplyCustomColor_Click" Padding="14,7"/>
+                    </StackPanel>
                     <TextBlock x:Name="FooterStatus" Text="Ready • Hardware backend not yet configured" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,24,0,0"/>
                 </StackPanel>
             </ScrollViewer>
