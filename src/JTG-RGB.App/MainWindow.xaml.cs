@@ -120,7 +120,7 @@ public partial class MainWindow : Window
         msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
         msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), false));
         msiStack.Children.Add(msiButtons);
-        msiStack.Children.Add(Body(_msiDevices.Count == 0 ? "No MSI lighting zones loaded." : string.Join("\\n", _msiDevices.Select(d => d.DisplayName))));
+        msiStack.Children.Add(BuildMsiLedControls());
         msi.Child = msiStack;
         root.Children.Add(msi);
 
@@ -264,7 +264,7 @@ public partial class MainWindow : Window
         msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
         msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), false));
         msiStack.Children.Add(msiButtons);
-        msiStack.Children.Add(Body(_msiDevices.Count == 0 ? "No MSI lighting zones loaded." : string.Join("\\n", _msiDevices.Select(d => d.DisplayName))));
+        msiStack.Children.Add(BuildMsiLedControls());
         msiCard.Child = msiStack;
         root.Children.Add(msiCard);
 
@@ -621,6 +621,52 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(ex.Message, "JTG-RGB — Save MSI SDK path", MessageBoxButton.OK, MessageBoxImage.Information);
         }
+    }
+
+    private UIElement BuildMsiLedControls()
+    {
+        var host = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        if (_msiDevices.Count == 0)
+        {
+            host.Children.Add(Body("No MSI lighting zones loaded. Connect to the MSI SDK to see the individual zones it exposes."));
+            return host;
+        }
+
+        host.Children.Add(Body("The MSI SDK reports controllable LED zones, not necessarily each physical fan or header. Use a zone's button to apply the currently selected color to that zone only."));
+        foreach (var device in _msiDevices)
+        {
+            for (uint index = 0; index < device.LedCount; index++)
+            {
+                var row = new Grid { Margin = new Thickness(0, 5, 0, 5) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var label = Body($"{device.Type} • {device.GetLedName(index)}");
+                label.VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(label, 0);
+                row.Children.Add(label);
+                var apply = ActionButton("Apply selected color", async (_, _) =>
+                {
+                    try
+                    {
+                        var rgb = (Color)ColorConverter.ConvertFromString(_selectedColor);
+                        await Task.Run(() => _msi.SetLedColor(device.Type, index, rgb.R, rgb.G, rgb.B));
+                        FooterStatus.Text = $"Applied {_selectedColor} to {device.GetLedName(index)}";
+                    }
+                    catch (Exception ex) when (ex is IOException or InvalidOperationException or InvalidDataException or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException or MarshalDirectiveException or ArgumentException)
+                    {
+                        FooterStatus.Text = "Could not control the selected MSI lighting zone";
+                        MessageBox.Show(ex.Message, "JTG-RGB — MSI zone control", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }, false);
+                Grid.SetColumn(apply, 1);
+                row.Children.Add(apply);
+                host.Children.Add(row);
+            }
+        }
+
+        if (_msiDevices.Count == 1 && _msiDevices[0].LedCount == 1)
+            host.Children.Add(Body("Only one MSI lighting zone was reported. If your fans and RGB headers are not listed separately here, this SDK/board combination is not exposing them as separate controllable zones."));
+        return host;
     }
 
     private async Task ConnectMsiAsync()
