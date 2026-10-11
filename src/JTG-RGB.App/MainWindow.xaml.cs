@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Net.Sockets;
+using Microsoft.Win32;
 using JtgRgb.App.Hardware;
 
 namespace JtgRgb.App;
@@ -14,7 +15,10 @@ public partial class MainWindow : Window
     private string _selectedEffect = "Static Color";
     private string _selectedProfile = "Default";
     private readonly OpenRgbBackendManager _backend = new();
+    private readonly MsiMysticLightClient _msi = new();
     private IReadOnlyList<OpenRgbDevice> _devices = [];
+    private IReadOnlyList<MsiLightingDevice> _msiDevices = [];
+    private string? _msiSdkPath = MsiMysticLightClient.LoadSavedSdkPath();
     private StackPanel? _deviceListHost;
     private TextBlock? _pawnIoStatusText;
 
@@ -31,7 +35,7 @@ public partial class MainWindow : Window
             FooterStatus.Text = "Ready • OpenRGB integration available";
             await UpdatePawnIoStatusAsync();
         };
-        Closed += async (_, _) => await _backend.DisposeAsync();
+        Closed += async (_, _) => { _msi.Dispose(); await _backend.DisposeAsync(); };
     }
 
     private void Nav_Click(object sender, RoutedEventArgs e)
@@ -100,6 +104,20 @@ public partial class MainWindow : Window
         devicesCard.Child = devicesStack;
         root.Children.Add(devicesCard);
         RenderDeviceCards();
+
+        var msi = Card();
+        var msiStack = new StackPanel();
+        msiStack.Children.Add(SmallHeading("MSI MYSTIC LIGHT BACKEND"));
+        msiStack.Children.Add(Heading("MSI motherboard lighting"));
+        msiStack.Children.Add(Body("Uses MSI's official Mystic Light SDK when you provide the native x64 SDK DLL. The SDK is not bundled by JTG-RGB; MSI Center/Mystic Light must be installed and running."));
+        msiStack.Children.Add(Body(_msiSdkPath is null ? "SDK path not configured." : $"SDK: {_msiSdkPath}"));
+        var msiButtons = new WrapPanel();
+        msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
+        msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), true));
+        msiStack.Children.Add(msiButtons);
+        msiStack.Children.Add(Body(_msiDevices.Count == 0 ? "No MSI lighting zones loaded." : string.Join("\\n", _msiDevices.Select(d => d.DisplayName))));
+        msi.Child = msiStack;
+        root.Children.Add(msi);
 
         var pawn = Card();
         pawn.Child = new StackPanel
@@ -229,6 +247,20 @@ public partial class MainWindow : Window
         appearanceStack.Children.Add(Body("Accent selection is currently a UI preview; saving the theme is not implemented."));
         appearance.Child = appearanceStack;
         root.Children.Add(appearance);
+
+        var msiCard = Card();
+        var msiStack = new StackPanel();
+        msiStack.Children.Add(SmallHeading("MSI MYSTIC LIGHT BACKEND"));
+        msiStack.Children.Add(Heading("MSI SDK integration"));
+        msiStack.Children.Add(Body("JTG-RGB can use MSI's official SDK independently of OpenRGB. Download the SDK from MSI's developer page, extract it, then select MysticLight_SDK_x64.dll. MSI Center/Mystic Light must be installed and running. The native SDK is not redistributed with JTG-RGB."));
+        msiStack.Children.Add(Body(_msiSdkPath is null ? "SDK path not configured." : $"SDK: {_msiSdkPath}"));
+        var msiButtons = new WrapPanel();
+        msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
+        msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), true));
+        msiStack.Children.Add(msiButtons);
+        msiStack.Children.Add(Body(_msiDevices.Count == 0 ? "No MSI lighting zones loaded." : string.Join("\\n", _msiDevices.Select(d => d.DisplayName))));
+        msiCard.Child = msiStack;
+        root.Children.Add(msiCard);
 
         var backendCard = Card();
         var backendStack = new StackPanel();
@@ -430,19 +462,83 @@ public partial class MainWindow : Window
             var rgb = (Color)ColorConverter.ConvertFromString(colorText);
             _selectedColor = $"#{rgb.R:X2}{rgb.G:X2}{rgb.B:X2}";
             SelectedColorText.Text = $"Selected: {_selectedColor}";
-            if (!_backend.Client.IsConnected || _devices.Count == 0)
+
+            var appliedToOpenRgb = false;
+            var appliedToMsi = false;
+            if (_backend.Client.IsConnected && _devices.Count > 0)
             {
-                FooterStatus.Text = $"Color selected: {_selectedColor} • Connect to OpenRGB to apply it";
-                return;
+                await _backend.Client.SetAllDevicesColorAsync(_devices, rgb.R, rgb.G, rgb.B);
+                appliedToOpenRgb = true;
             }
 
-            await _backend.Client.SetAllDevicesColorAsync(_devices, rgb.R, rgb.G, rgb.B);
-            FooterStatus.Text = $"Applied {_selectedColor} to {_devices.Count} controller(s)";
+            if (_msi.IsInitialized && _msiDevices.Count > 0)
+            {
+                await Task.Run(() => _msi.SetAllDevicesColor(rgb.R, rgb.G, rgb.B));
+                appliedToMsi = true;
+            }
+
+            if (appliedToOpenRgb || appliedToMsi)
+            {
+                var targets = new List<string>();
+                if (appliedToOpenRgb) targets.Add($"{_devices.Count} OpenRGB controller(s)");
+                if (appliedToMsi) targets.Add($"{_msiDevices.Count} MSI lighting device(s)");
+                FooterStatus.Text = $"Applied {_selectedColor} to {string.Join(" + ", targets)}";
+            }
+            else
+            {
+                FooterStatus.Text = $"Color selected: {_selectedColor} • Connect OpenRGB or MSI Mystic Light to apply it";
+            }
         }
-        catch (Exception ex) when (ex is FormatException or IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException)
+        catch (Exception ex) when (ex is FormatException or IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException or MarshalDirectiveException)
         {
             FooterStatus.Text = "Could not apply color to all devices";
             MessageBox.Show(ex.Message, "JTG-RGB — Apply color", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private void ChooseMsiSdkDll()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Select MSI Mystic Light SDK DLL",
+            Filter = "MSI Mystic Light SDK (MysticLight_SDK_x64.dll;MysticLight_SDK.dll)|MysticLight_SDK_x64.dll;MysticLight_SDK.dll|DLL files (*.dll)|*.dll",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog(this) != true) return;
+        try
+        {
+            _msiSdkPath = dialog.FileName;
+            MsiMysticLightClient.SaveSdkPath(_msiSdkPath);
+            FooterStatus.Text = "MSI SDK path saved. Connect to discover its lighting devices.";
+            ShowPage("Settings");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(ex.Message, "JTG-RGB — Save MSI SDK path", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private async Task ConnectMsiAsync()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_msiSdkPath))
+            {
+                MessageBox.Show("Choose MysticLight_SDK_x64.dll from MSI's official Mystic Light SDK package first.", "JTG-RGB — MSI Mystic Light", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _msiDevices = await Task.Run(() => _msi.Connect(_msiSdkPath));
+            FooterStatus.Text = _msiDevices.Count == 0
+                ? "MSI SDK connected, but it did not report any controllable lighting devices."
+                : $"Connected to MSI Mystic Light: {_msiDevices.Count} device type(s) discovered.";
+            ShowPage("Settings");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or InvalidDataException or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException or PlatformNotSupportedException or MarshalDirectiveException or ArgumentException)
+        {
+            MessageBox.Show(ex.Message, "JTG-RGB — MSI Mystic Light", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }
