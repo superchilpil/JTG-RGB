@@ -22,6 +22,7 @@ public sealed class OpenRgbSdkClient : IAsyncDisposable
     private const uint SetClientName = 50;
     private const uint DeviceListUpdated = 100;
     private const uint UpdateLeds = 1050;
+    private const uint SetCustomMode = 1100;
     private const uint ClientProtocolVersion = 5;
     private const int MaximumPacketBytes = 16 * 1024 * 1024;
 
@@ -139,6 +140,7 @@ public sealed class OpenRgbSdkClient : IAsyncDisposable
             for (var i = 0; i < device.LedCount; i++)
                 WriteUInt32(payload, 6 + i * 4, color);
 
+            await SendPacketAsync(device.Id, SetCustomMode, [], cancellationToken);
             await SendPacketAsync(device.Id, UpdateLeds, payload, cancellationToken);
         }
         finally
