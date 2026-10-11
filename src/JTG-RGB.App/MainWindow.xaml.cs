@@ -115,8 +115,7 @@ public partial class MainWindow : Window
             {
                 _selectedEffect = effect.Item1;
                 ActiveEffectText.Text = _selectedEffect;
-                FooterStatus.Text = $"Effect selected: {_selectedEffect} • Hardware rendering is not connected yet";
-                MessageBox.Show($"{_selectedEffect} is selected in the interface. Effect rendering and hardware output will be implemented in a later milestone.", "JTG-RGB", MessageBoxButton.OK, MessageBoxImage.Information);
+                FooterStatus.Text = $"Effect selected: {_selectedEffect} • Rendering and hardware output are not connected yet";
             };
             palette.Children.Add(button);
         }
