@@ -954,7 +954,9 @@ public partial class MainWindow : Window
                 var row = new Grid { Margin = new Thickness(0, 5, 0, 5) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var label = Body($"{device.Type} • {device.GetLedName(index)}");
+                var styleList = device.LedStyles.Count > (int)index ? device.LedStyles[(int)index] : [];
+                var styleSummary = styleList.Count == 0 ? "Supported styles unavailable" : $"Styles: {string.Join(", ", styleList)}";
+                var label = Body($"{device.Type} • {device.GetLedName(index)}\n{styleSummary}");
                 label.VerticalAlignment = VerticalAlignment.Center;
                 Grid.SetColumn(label, 0);
                 row.Children.Add(label);
