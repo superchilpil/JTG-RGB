@@ -44,13 +44,13 @@ public partial class MainWindow : Window
 
         if (page == "Dashboard")
         {
-            SecondaryPageHost.Visibility = Visibility.Collapsed;
+            SecondaryPageScrollViewer.Visibility = Visibility.Collapsed;
             DashboardScroll.Visibility = Visibility.Visible;
             return;
         }
 
         DashboardScroll.Visibility = Visibility.Collapsed;
-        SecondaryPageHost.Visibility = Visibility.Visible;
+        SecondaryPageScrollViewer.Visibility = Visibility.Visible;
         SecondaryPageHost.Content = page switch
         {
             "Devices" => BuildDevicesPage(),
