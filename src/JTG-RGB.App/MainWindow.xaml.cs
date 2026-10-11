@@ -109,7 +109,7 @@ public partial class MainWindow : Window
             var swatch = new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(effect.Item3)), Margin = new Thickness(0, 0, 0, 12) };
             panel.Children.Add(swatch);
             panel.Children.Add(new TextBlock { Text = effect.Item1, FontWeight = FontWeights.SemiBold, FontSize = 13, Foreground = Brushes.White });
-            panel.Children.Add(new TextBlock { Text = effect.Item2, TextWrapping = TextWrapping.Wrap, FontSize = 10, Foreground = Brush("#969EB1"), Margin = new Thickness(0, 5, 0, 0) });
+            panel.Children.Add(new TextBlock { Text = effect.Item2, TextWrapping = TextWrapping.Wrap, FontSize = 10, Foreground = MakeBrush("#969EB1"), Margin = new Thickness(0, 5, 0, 0) });
             button.Content = panel;
             button.Click += (_, _) =>
             {
@@ -121,7 +121,7 @@ public partial class MainWindow : Window
         }
         root.Children.Add(palette);
         var note = Card();
-        note.Child = new TextBlock { Text = "COMMUNITY EFFECTS  •  We'll investigate compatible effect imports after the built-in effects engine is working. Imported effects will be checked for redistribution and licensing requirements.", TextWrapping = TextWrapping.Wrap, Foreground = Brush("#B4B9CA"), FontSize = 12 };
+        note.Child = new TextBlock { Text = "COMMUNITY EFFECTS  •  We'll investigate compatible effect imports after the built-in effects engine is working. Imported effects will be checked for redistribution and licensing requirements.", TextWrapping = TextWrapping.Wrap, Foreground = MakeBrush("#B4B9CA"), FontSize = 12 };
         root.Children.Add(note);
         return root;
     }
@@ -131,12 +131,12 @@ public partial class MainWindow : Window
         var root = PageStack();
         root.Children.Add(SectionHeading("Lighting canvas", "The canvas will map each LED to a position so effects can move naturally across devices."));
         var canvasCard = Card();
-        var canvas = new Grid { MinHeight = 300, Background = Brush("#12151D") };
+        var canvas = new Grid { MinHeight = 300, Background = MakeBrush("#12151D") };
         for (var i = 0; i < 12; i++) canvas.ColumnDefinitions.Add(new ColumnDefinition());
         for (var i = 0; i < 7; i++) canvas.RowDefinitions.Add(new RowDefinition());
-        var title = new TextBlock { Text = "PREVIEW CANVAS", Foreground = Brush("#6E768B"), FontSize = 10, Margin = new Thickness(14), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        var title = new TextBlock { Text = "PREVIEW CANVAS", Foreground = MakeBrush("#6E768B"), FontSize = 10, Margin = new Thickness(14), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
         canvas.Children.Add(title);
-        var board = new Border { BorderBrush = Brush("#53506F"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Background = Brush("#1B1D2A"), Margin = new Thickness(70, 65, 70, 65) };
+        var board = new Border { BorderBrush = MakeBrush("#53506F"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Background = MakeBrush("#1B1D2A"), Margin = new Thickness(70, 65, 70, 65) };
         Grid.SetRow(board, 1); Grid.SetRowSpan(board, 5); Grid.SetColumn(board, 2); Grid.SetColumnSpan(board, 8);
         canvas.Children.Add(board);
         var keys = new UniformGrid { Rows = 3, Columns = 12, Margin = new Thickness(88, 78, 88, 78) };
@@ -165,7 +165,7 @@ public partial class MainWindow : Window
             line.Children.Add(new Border { Width = 38, Height = 38, CornerRadius = new CornerRadius(10), Background = Brush(profile.Item3), Margin = new Thickness(0, 0, 14, 0) });
             var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             texts.Children.Add(new TextBlock { Text = profile.Item1, Foreground = Brushes.White, FontSize = 14, FontWeight = FontWeights.SemiBold });
-            texts.Children.Add(new TextBlock { Text = profile.Item2, Foreground = Brush("#969EB1"), FontSize = 11, Margin = new Thickness(0, 3, 0, 0) });
+            texts.Children.Add(new TextBlock { Text = profile.Item2, Foreground = MakeBrush("#969EB1"), FontSize = 11, Margin = new Thickness(0, 3, 0, 0) });
             line.Children.Add(texts);
             card.Child = line;
             Grid.SetColumn(card, 0);
@@ -221,12 +221,12 @@ public partial class MainWindow : Window
     {
         var panel = new StackPanel { Margin = new Thickness(0, 9, 0, 9) };
         panel.Children.Add(new CheckBox { Content = title, Foreground = Brushes.White, FontSize = 13, IsChecked = false });
-        panel.Children.Add(new TextBlock { Text = description, Foreground = Brush("#969EB1"), FontSize = 10, Margin = new Thickness(24, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(new TextBlock { Text = description, Foreground = MakeBrush("#969EB1"), FontSize = 10, Margin = new Thickness(24, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
         return new CheckBox { Content = panel, IsChecked = false, Margin = new Thickness(0, 3, 0, 3) };
     }
 
     private static StackPanel PageStack() => new() { Orientation = Orientation.Vertical };
-    private static Border Card() => new() { Background = Brush("#181B24"), BorderBrush = Brush("#292E3B"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(13), Padding = new Thickness(20), Margin = new Thickness(0, 0, 0, 14) };
+    private static Border Card() => new() { Background = MakeBrush("#181B24"), BorderBrush = MakeBrush("#292E3B"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(13), Padding = new Thickness(20), Margin = new Thickness(0, 0, 0, 14) };
 
     private static UIElement SectionHeading(string title, string description)
     {
@@ -237,14 +237,14 @@ public partial class MainWindow : Window
     }
 
     private static TextBlock Heading(string text) => new() { Text = text, FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, Margin = new Thickness(0, 6, 0, 6), TextWrapping = TextWrapping.Wrap };
-    private static TextBlock SmallHeading(string text) => new() { Text = text, FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brush("#969EB1"), Margin = new Thickness(0, 0, 0, 10) };
-    private static TextBlock Body(string text) => new() { Text = text, FontSize = 11, Foreground = Brush("#969EB1"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 12), MaxWidth = 850 };
+    private static TextBlock SmallHeading(string text) => new() { Text = text, FontSize = 10, FontWeight = FontWeights.Bold, Foreground = MakeBrush("#969EB1"), Margin = new Thickness(0, 0, 0, 10) };
+    private static TextBlock Body(string text) => new() { Text = text, FontSize = 11, Foreground = MakeBrush("#969EB1"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 12), MaxWidth = 850 };
     private static Border IconTile(string symbol, string background, string foreground) => new() { Width = 52, Height = 52, CornerRadius = new CornerRadius(14), Background = Brush(background), Child = new TextBlock { Text = symbol, FontSize = 24, Foreground = Brush(foreground), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, Margin = new Thickness(0, 0, 0, 12) };
     private static SolidColorBrush MakeBrush(string color) => new((Color)ColorConverter.ConvertFromString(color));
     private static Button ActionButton(string text, RoutedEventHandler click, bool primary, Brush? background = null)
     {
         var button = new Button { Content = text, Padding = new Thickness(14, 9, 14, 9), Margin = new Thickness(0, 7, 8, 0), HorizontalAlignment = HorizontalAlignment.Left };
-        if (primary) { button.Background = Brush("#8B6CFF"); button.BorderBrush = Brush("#8B6CFF"); }
+        if (primary) { button.Background = MakeBrush("#8B6CFF"); button.BorderBrush = MakeBrush("#8B6CFF"); }
         if (background is not null) button.Background = background;
         button.Click += click;
         return button;
