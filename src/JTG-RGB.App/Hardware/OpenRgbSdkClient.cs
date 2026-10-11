@@ -11,7 +11,8 @@ public sealed record OpenRgbDevice(
     string Vendor,
     string Description,
     string Version,
-    int LedCount);
+    int LedCount,
+    int ColorCount);
 
 public sealed class OpenRgbSdkClient : IAsyncDisposable
 {
@@ -133,14 +134,24 @@ public sealed class OpenRgbSdkClient : IAsyncDisposable
             EnsureConnected();
             if (device.LedCount <= 0) return;
 
-            var color = ((uint)red << 16) | ((uint)green << 8) | blue;
-            var payload = new byte[6 + device.LedCount * 4];
-            WriteUInt32(payload, 0, (uint)(2 + device.LedCount * 4));
-            WriteUInt16(payload, 4, checked((ushort)device.LedCount));
-            for (var i = 0; i < device.LedCount; i++)
+            var colorCount = device.ColorCount > 0 ? device.ColorCount : device.LedCount;
+            if (colorCount <= 0) return;
+            if (colorCount > ushort.MaxValue)
+                throw new InvalidDataException($"OpenRGB reported too many color entries ({colorCount}).");
+
+            // OpenRGB packs RGBColor with red in the least-significant byte:
+            // ToRGBColor(r, g, b) == (b << 16) | (g << 8) | r.
+            var color = ((uint)blue << 16) | ((uint)green << 8) | red;
+            var payload = new byte[6 + colorCount * 4];
+            WriteUInt32(payload, 0, (uint)(2 + colorCount * 4));
+            WriteUInt16(payload, 4, checked((ushort)colorCount));
+            for (var i = 0; i < colorCount; i++)
                 WriteUInt32(payload, 6 + i * 4, color);
 
+            // Switching a controller into software/custom mode and immediately
+            // updating it can race some OpenRGB device workers.
             await SendPacketAsync(device.Id, SetCustomMode, [], cancellationToken);
+            await Task.Delay(50, cancellationToken);
             await SendPacketAsync(device.Id, UpdateLeds, payload, cancellationToken);
         }
         finally
@@ -280,7 +291,7 @@ public sealed class OpenRgbSdkClient : IAsyncDisposable
         }
 
         return new OpenRgbDevice(id, string.IsNullOrWhiteSpace(name) ? "Unnamed device" : name,
-            vendor, description, version, ledCount);
+            vendor, description, version, ledCount, colorCount);
     }
 
     private static void SkipMode(PacketReader reader, int protocol)
