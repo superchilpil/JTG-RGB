@@ -11,4 +11,13 @@
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
+
+  <!-- Optional local SDK payload; copied beside the app if a redistribution-approved DLL is supplied. -->
+  <ItemGroup Condition="Exists('..\..\vendor\MSI\MysticLight_SDK_x64.dll')">
+    <Content Include="..\..\vendor\MSI\MysticLight_SDK_x64.dll">
+      <Link>MysticLight_SDK_x64.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
 </Project>
