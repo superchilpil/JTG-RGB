@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net.Http;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -115,8 +116,9 @@ public partial class MainWindow : Window
         msiStack.Children.Add(Body("Uses MSI's native Mystic Light SDK when available. MSI Center must be installed with the Mystic Light feature enabled and running. A bundled SDK DLL is loaded automatically when included with the app."));
         msiStack.Children.Add(Body(_msiSdkPath is null ? "SDK path not configured." : $"SDK: {_msiSdkPath}"));
         var msiButtons = new WrapPanel();
+        msiButtons.Children.Add(ActionButton("Download MSI SDK", async (_, _) => await DownloadMsiSdkAsync(connectAfterDownload: true), true));
         msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
-        msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), true));
+        msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), false));
         msiStack.Children.Add(msiButtons);
         msiStack.Children.Add(Body(_msiDevices.Count == 0 ? "No MSI lighting zones loaded." : string.Join("\\n", _msiDevices.Select(d => d.DisplayName))));
         msi.Child = msiStack;
@@ -520,21 +522,18 @@ public partial class MainWindow : Window
         }
 
         var answer = MessageBox.Show(
-            "JTG-RGB detected an MSI motherboard. To control its motherboard lighting, install MSI Center and enable/install the Mystic Light feature, then keep it running. If MSI Center is already installed, make sure Mystic Light is installed inside MSI Center.\n\nOpen MSI's official Mystic Light page now?",
+            "JTG-RGB detected an MSI motherboard. It can download the Mystic Light SDK ZIP from MSI's official download host and install the x64 DLL into your local AppData folder. This does not install MSI Center. MSI Center must also be installed with the Mystic Light feature enabled and running.\n\nYes: Download SDK now\nNo: Open MSI's page to install MSI Center\nCancel: Do this later",
             "MSI motherboard detected",
-            MessageBoxButton.YesNo,
+            MessageBoxButton.YesNoCancel,
             MessageBoxImage.Information);
 
         if (answer == MessageBoxResult.Yes)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo("https://www.msi.com/Landing/mystic-light-rgb-gaming-pc/download") { UseShellExecute = true });
-            }
-            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-            {
-                MessageBox.Show("Open MSI's Mystic Light download page manually: https://www.msi.com/Landing/mystic-light-rgb-gaming-pc/download", "JTG-RGB", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+            await DownloadMsiSdkAsync(connectAfterDownload: true);
+        }
+        else if (answer == MessageBoxResult.No)
+        {
+            OpenMsiMysticLightPage();
         }
     }
 
@@ -552,6 +551,45 @@ public partial class MainWindow : Window
             return false;
         }
     }
+    private async Task DownloadMsiSdkAsync(bool connectAfterDownload)
+    {
+        FooterStatus.Text = "Downloading MSI Mystic Light SDK from MSI…";
+        try
+        {
+            _msiSdkPath = await MsiMysticLightClient.DownloadSdkToAppDataAsync();
+            FooterStatus.Text = "MSI SDK downloaded to your local AppData folder.";
+            if (connectAfterDownload)
+            {
+                await ConnectMsiAsync();
+            }
+            else
+            {
+                ShowPage("Settings");
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or TaskCanceledException)
+        {
+            FooterStatus.Text = "MSI SDK download failed";
+            MessageBox.Show(
+                $"JTG-RGB couldn't download or install the MSI SDK. No DLL was installed unless the download completed successfully.\n\nDetails: {ex.Message}\n\nYou can retry or select the SDK DLL manually.",
+                "JTG-RGB — MSI SDK download",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private static void OpenMsiMysticLightPage()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("https://www.msi.com/Landing/mystic-light-rgb-gaming-pc/download") { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            MessageBox.Show("Open MSI's Mystic Light download page manually: https://www.msi.com/Landing/mystic-light-rgb-gaming-pc/download", "JTG-RGB", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
     private void ChooseMsiSdkDll()
     {
         var dialog = new OpenFileDialog
