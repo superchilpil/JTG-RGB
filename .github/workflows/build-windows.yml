@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'src/**'
+      - 'vendor/MSI/**'
       - 'scripts/**'
       - 'JTG-RGB.sln'
       - '.github/workflows/build-windows.yml'
