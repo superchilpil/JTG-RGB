@@ -522,6 +522,14 @@ public partial class MainWindow : Window
             }
         }
 
+        // If an SDK path is already configured (or a bundled DLL was found), do not
+        // show the first-run download prompt again just because connecting failed.
+        if (!string.IsNullOrWhiteSpace(sdkToUse))
+        {
+            FooterStatus.Text = "MSI motherboard detected • Mystic Light connection failed; check MSI Center/Mystic Light and retry from Devices or Settings.";
+            return;
+        }
+
         var answer = MessageBox.Show(
             "JTG-RGB detected an MSI motherboard. It can download the Mystic Light SDK ZIP from MSI's official download host and install the x64 DLL into your local AppData folder. This does not install MSI Center. MSI Center must also be installed with the Mystic Light feature enabled and running.\n\nYes: Download SDK now\nNo: Open MSI's page to install MSI Center\nCancel: Do this later",
             "MSI motherboard detected",
