@@ -1,0 +1,171 @@
+<Window x:Class="JtgRgb.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="JTG-RGB" Height="820" Width="1380" MinHeight="700" MinWidth="1120"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource BgBrush}"
+        Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="0,3,0,3"/>
+        </Style>
+        <Style x:Key="SectionLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="236"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Background="#141720" BorderBrush="#282C38" BorderThickness="0,0,1,0">
+            <DockPanel Margin="18,20,16,18">
+                <StackPanel DockPanel.Dock="Top">
+                    <StackPanel Orientation="Horizontal" Margin="2,0,0,28">
+                        <Border Width="38" Height="38" CornerRadius="12" Background="{StaticResource AccentBrush}" VerticalAlignment="Center">
+                            <TextBlock Text="J" FontSize="23" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                        </Border>
+                        <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="JTG-RGB" FontSize="19" FontWeight="Bold" CharacterSpacing="40"/>
+                            <TextBlock Text="LIGHTING CONTROL" FontSize="9" Foreground="{StaticResource MutedBrush}" FontWeight="SemiBold" CharacterSpacing="110"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="WORKSPACE" Style="{StaticResource SectionLabel}" Margin="12,0,0,8"/>
+                    <Button Style="{StaticResource NavButton}" Tag="Dashboard" Click="Nav_Click" Background="#29243F" BorderBrush="#413466">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="▦" Width="28" FontSize="18"/><TextBlock Text="Dashboard" VerticalAlignment="Center" FontWeight="SemiBold"/></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Tag="Devices" Click="Nav_Click">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="▣" Width="28" FontSize="18"/><TextBlock Text="Devices" VerticalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Tag="Effects" Click="Nav_Click">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="✧" Width="28" FontSize="20"/><TextBlock Text="Effects" VerticalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Tag="Layouts" Click="Nav_Click">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="▤" Width="28" FontSize="18"/><TextBlock Text="Layouts" VerticalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource NavButton}" Tag="Profiles" Click="Nav_Click">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="◷" Width="28" FontSize="18"/><TextBlock Text="Profiles" VerticalAlignment="Center"/></StackPanel>
+                    </Button>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Border Background="#1C202B" CornerRadius="12" Padding="13" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="BACKEND STATUS" Style="{StaticResource SectionLabel}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
+                                <Ellipse Width="7" Height="7" Fill="#F0B84E" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock x:Name="BackendStatusText" Text="Not connected" FontSize="12" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <TextBlock x:Name="BackendDetailText" Text="OpenRGB integration will connect here." Foreground="{StaticResource MutedBrush}" FontSize="10" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                    <Button Style="{StaticResource NavButton}" Tag="Settings" Click="Nav_Click">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="⚙" Width="28" FontSize="18"/><TextBlock Text="Settings" VerticalAlignment="Center"/></StackPanel>
+                    </Button>
+                    <TextBlock Text="JTG-RGB • EARLY DEVELOPMENT" Foreground="#697185" FontSize="9" Margin="12,18,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions><RowDefinition Height="76"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Border Grid.Row="0" BorderBrush="#282C38" BorderThickness="0,0,0,1" Background="#12151D">
+                <Grid Margin="30,0,30,0">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="PageTitle" Text="Dashboard" FontSize="20" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="PageSubtitle" Text="Your lighting setup at a glance" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Border Background="#1E222D" CornerRadius="8" Padding="10,8" Margin="0,0,10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="7" Height="7" Fill="#F0B84E" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                <TextBlock Text="Backend offline" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Button Content="↻  Refresh devices" Click="Refresh_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="30,25,30,30">
+                    <Border CornerRadius="18" Padding="25" Margin="0,0,0,22" ClipToBounds="True">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#29234B" Offset="0"/>
+                                <GradientStop Color="#1D2132" Offset="0.58"/>
+                                <GradientStop Color="#18232D" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" MaxWidth="650">
+                                <Border Background="#3A315D" CornerRadius="5" Padding="8,4" HorizontalAlignment="Left" Margin="0,0,0,12">
+                                    <TextBlock Text="YOUR LIGHTING. YOUR RULES." FontSize="9" FontWeight="Bold" CharacterSpacing="100"/>
+                                </Border>
+                                <TextBlock Text="One canvas. All your RGB." FontSize="29" FontWeight="Bold" TextWrapping="Wrap"/>
+                                <TextBlock Text="Bring your compatible devices together, explore effects, and make your setup yours." Foreground="#B6B6CF" FontSize="13" TextWrapping="Wrap" Margin="0,9,20,20"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="Explore effects  →" Background="{StaticResource AccentBrush}" BorderBrush="{StaticResource AccentBrush}" Click="ExploreEffects_Click" Margin="0,0,10,0"/>
+                                    <Button Content="View devices" Click="ViewDevices_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <Grid Grid.Column="1" Width="210" Height="160" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Ellipse Width="150" Height="150" Stroke="#6E55E8" StrokeThickness="1" Opacity="0.35"/>
+                                <Ellipse Width="118" Height="118" Stroke="#927DFF" StrokeThickness="5" Opacity="0.7"/>
+                                <Ellipse Width="85" Height="85" Stroke="#4FCEF0" StrokeThickness="7" Opacity="0.75"/>
+                                <Ellipse Width="48" Height="48" Fill="{StaticResource AccentBrush}" Opacity="0.88"/>
+                                <TextBlock Text="JTG" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Grid Margin="0,0,0,22">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{StaticResource PanelBrush}" BorderBrush="#292E3B" BorderThickness="1" CornerRadius="12" Padding="17" Margin="0,0,8,0">
+                            <StackPanel><TextBlock Text="CONNECTED DEVICES" Style="{StaticResource SectionLabel}"/><TextBlock x:Name="DeviceCountText" Text="—" FontSize="28" FontWeight="Bold" Margin="0,8,0,2"/><TextBlock Text="Waiting for OpenRGB" Foreground="{StaticResource MutedBrush}" FontSize="11"/></StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Background="{StaticResource PanelBrush}" BorderBrush="#292E3B" BorderThickness="1" CornerRadius="12" Padding="17" Margin="4,0">
+                            <StackPanel><TextBlock Text="ACTIVE EFFECT" Style="{StaticResource SectionLabel}"/><TextBlock x:Name="ActiveEffectText" Text="Static Color" FontSize="20" FontWeight="SemiBold" Margin="0,12,0,4"/><TextBlock Text="Starter effect" Foreground="{StaticResource MutedBrush}" FontSize="11"/></StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="#292E3B" BorderThickness="1" CornerRadius="12" Padding="17" Margin="8,0,0,0">
+                            <StackPanel><TextBlock Text="CURRENT PROFILE" Style="{StaticResource SectionLabel}"/><TextBlock Text="Default" FontSize="20" FontWeight="SemiBold" Margin="0,12,0,4"/><TextBlock Text="Saved locally" Foreground="{StaticResource MutedBrush}" FontSize="11"/></StackPanel>
+                        </Border>
+                    </Grid>
+                    <Grid Margin="0,0,0,12">
+                        <TextBlock Text="Your devices" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Content="Manage devices  →" HorizontalAlignment="Right" Padding="12,6" Click="ViewDevices_Click"/>
+                    </Grid>
+                    <Border Background="{StaticResource PanelBrush}" BorderBrush="#292E3B" BorderThickness="1" CornerRadius="14" Padding="22" Margin="0,0,0,22">
+                        <StackPanel x:Name="DeviceEmptyState" HorizontalAlignment="Center" Margin="0,10,0,10">
+                            <Border Width="54" Height="54" CornerRadius="16" Background="#252638" Margin="0,0,0,12">
+                                <TextBlock Text="▣" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#AA9BFF"/>
+                            </Border>
+                            <TextBlock Text="No devices loaded yet" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Connect to the bundled OpenRGB backend to discover your hardware." Foreground="{StaticResource MutedBrush}" FontSize="11" TextAlignment="Center" TextWrapping="Wrap" Margin="0,7,0,14"/>
+                            <Button Content="Refresh device list" Click="Refresh_Click"/>
+                        </StackPanel>
+                        <ItemsControl x:Name="DeviceList" Visibility="Collapsed">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </Border>
+                    <Grid>
+                        <TextBlock Text="Quick color" FontSize="17" FontWeight="SemiBold"/>
+                        <TextBlock Text="Choose a color to apply once hardware control is connected." Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,30,0,14"/>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" x:Name="ColorSwatches">
+                        <Button Tag="#8B6CFF" Click="Color_Click" Background="#8B6CFF" Width="42" Height="42" Padding="0" Margin="0,0,10,0" ToolTip="Violet"/>
+                        <Button Tag="#36C5F0" Click="Color_Click" Background="#36C5F0" Width="42" Height="42" Padding="0" Margin="0,0,10,0" ToolTip="Cyan"/>
+                        <Button Tag="#42D392" Click="Color_Click" Background="#42D392" Width="42" Height="42" Padding="0" Margin="0,0,10,0" ToolTip="Green"/>
+                        <Button Tag="#FF637D" Click="Color_Click" Background="#FF637D" Width="42" Height="42" Padding="0" Margin="0,0,10,0" ToolTip="Coral"/>
+                        <Button Tag="#F4B94F" Click="Color_Click" Background="#F4B94F" Width="42" Height="42" Padding="0" Margin="0,0,10,0" ToolTip="Amber"/>
+                        <Button Tag="#F4F5FA" Click="Color_Click" Background="#F4F5FA" Width="42" Height="42" Padding="0" Margin="0,0,10,0" ToolTip="White"/>
+                        <TextBlock x:Name="SelectedColorText" Text="Selected: #8B6CFF" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11"/>
+                    </StackPanel>
+                    <TextBlock x:Name="FooterStatus" Text="Ready • Hardware backend not yet configured" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,24,0,0"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>
