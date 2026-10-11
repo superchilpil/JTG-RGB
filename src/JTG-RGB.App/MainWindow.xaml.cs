@@ -103,10 +103,10 @@ public partial class MainWindow : Window
                 Padding = new Thickness(14),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch,
-                Background = new SolidColorBrush(Color.FromRgb(27, 30, 41))
+                Background = new SolidColorMakeBrush(Color.FromRgb(27, 30, 41))
             };
             var panel = new StackPanel();
-            var swatch = new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(effect.Item3)), Margin = new Thickness(0, 0, 0, 12) };
+            var swatch = new Border { Height = 48, CornerRadius = new CornerRadius(8), Background = new SolidColorMakeBrush((Color)ColorConverter.ConvertFromString(effect.Item3)), Margin = new Thickness(0, 0, 0, 12) };
             panel.Children.Add(swatch);
             panel.Children.Add(new TextBlock { Text = effect.Item1, FontWeight = FontWeights.SemiBold, FontSize = 13, Foreground = Brushes.White });
             panel.Children.Add(new TextBlock { Text = effect.Item2, TextWrapping = TextWrapping.Wrap, FontSize = 10, Foreground = MakeBrush("#969EB1"), Margin = new Thickness(0, 5, 0, 0) });
@@ -142,7 +142,7 @@ public partial class MainWindow : Window
         var keys = new UniformGrid { Rows = 3, Columns = 12, Margin = new Thickness(88, 78, 88, 78) };
         foreach (var c in Palette)
             for (var i = 0; i < 6; i++)
-                keys.Children.Add(new Border { Margin = new Thickness(2), CornerRadius = new CornerRadius(3), Background = Brush(c), Opacity = 0.9 });
+                keys.Children.Add(new Border { Margin = new Thickness(2), CornerRadius = new CornerRadius(3), Background = MakeBrush(c), Opacity = 0.9 });
         Grid.SetRow(keys, 1); Grid.SetRowSpan(keys, 5); Grid.SetColumn(keys, 2); Grid.SetColumnSpan(keys, 8);
         canvas.Children.Add(keys);
         canvasCard.Child = canvas;
@@ -162,7 +162,7 @@ public partial class MainWindow : Window
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var card = Card();
             var line = new StackPanel { Orientation = Orientation.Horizontal };
-            line.Children.Add(new Border { Width = 38, Height = 38, CornerRadius = new CornerRadius(10), Background = Brush(profile.Item3), Margin = new Thickness(0, 0, 14, 0) });
+            line.Children.Add(new Border { Width = 38, Height = 38, CornerRadius = new CornerRadius(10), Background = MakeBrush(profile.Item3), Margin = new Thickness(0, 0, 14, 0) });
             var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             texts.Children.Add(new TextBlock { Text = profile.Item1, Foreground = Brushes.White, FontSize = 14, FontWeight = FontWeights.SemiBold });
             texts.Children.Add(new TextBlock { Text = profile.Item2, Foreground = MakeBrush("#969EB1"), FontSize = 11, Margin = new Thickness(0, 3, 0, 0) });
@@ -196,7 +196,7 @@ public partial class MainWindow : Window
         appearanceStack.Children.Add(Heading("Accent color"));
         var swatches = new WrapPanel { Margin = new Thickness(0, 10, 0, 6) };
         foreach (var color in Palette)
-            swatches.Children.Add(ActionButton("●", (_, _) => { _selectedColor = color; SelectedColorText.Text = $"Selected: {color}"; FooterStatus.Text = $"Accent preview selected: {color}"; }, false, Brush(color)));
+            swatches.Children.Add(ActionButton("●", (_, _) => { _selectedColor = color; SelectedColorText.Text = $"Selected: {color}"; FooterStatus.Text = $"Accent preview selected: {color}"; }, false, MakeBrush(color)));
         appearanceStack.Children.Add(swatches);
         appearanceStack.Children.Add(Body("Accent selection is currently a UI preview; saving the theme is not implemented."));
         appearance.Child = appearanceStack;
@@ -239,7 +239,7 @@ public partial class MainWindow : Window
     private static TextBlock Heading(string text) => new() { Text = text, FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, Margin = new Thickness(0, 6, 0, 6), TextWrapping = TextWrapping.Wrap };
     private static TextBlock SmallHeading(string text) => new() { Text = text, FontSize = 10, FontWeight = FontWeights.Bold, Foreground = MakeBrush("#969EB1"), Margin = new Thickness(0, 0, 0, 10) };
     private static TextBlock Body(string text) => new() { Text = text, FontSize = 11, Foreground = MakeBrush("#969EB1"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 12), MaxWidth = 850 };
-    private static Border IconTile(string symbol, string background, string foreground) => new() { Width = 52, Height = 52, CornerRadius = new CornerRadius(14), Background = Brush(background), Child = new TextBlock { Text = symbol, FontSize = 24, Foreground = Brush(foreground), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, Margin = new Thickness(0, 0, 0, 12) };
+    private static Border IconTile(string symbol, string background, string foreground) => new() { Width = 52, Height = 52, CornerRadius = new CornerRadius(14), Background = MakeBrush(background), Child = new TextBlock { Text = symbol, FontSize = 24, Foreground = MakeBrush(foreground), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }, Margin = new Thickness(0, 0, 0, 12) };
     private static SolidColorBrush MakeBrush(string color) => new((Color)ColorConverter.ConvertFromString(color));
     private static Button ActionButton(string text, RoutedEventHandler click, bool primary, Brush? background = null)
     {
