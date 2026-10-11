@@ -160,6 +160,38 @@ public sealed class OpenRgbSdkClient : IAsyncDisposable
         }
     }
 
+    public async Task SetDeviceColorsAsync(OpenRgbDevice device, IReadOnlyList<(byte Red, byte Green, byte Blue)> colors, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            EnsureConnected();
+            if (colors.Count == 0) return;
+            var colorCount = device.ColorCount > 0 ? device.ColorCount : device.LedCount;
+            if (colorCount <= 0) return;
+            if (colorCount > ushort.MaxValue)
+                throw new InvalidDataException($"OpenRGB reported too many color entries ({colorCount}).");
+
+            var payload = new byte[6 + colorCount * 4];
+            WriteUInt32(payload, 0, (uint)(2 + colorCount * 4));
+            WriteUInt16(payload, 4, checked((ushort)colorCount));
+            for (var i = 0; i < colorCount; i++)
+            {
+                var c = colors[Math.Min(i, colors.Count - 1)];
+                var packed = ((uint)c.Blue << 16) | ((uint)c.Green << 8) | c.Red;
+                WriteUInt32(payload, 6 + i * 4, packed);
+            }
+
+            await SendPacketAsync(device.Id, SetCustomMode, [], cancellationToken);
+            await Task.Delay(50, cancellationToken);
+            await SendPacketAsync(device.Id, UpdateLeds, payload, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task SetAllDevicesColorAsync(IReadOnlyList<OpenRgbDevice> devices, byte red, byte green, byte blue, CancellationToken cancellationToken = default)
     {
         foreach (var device in devices)
