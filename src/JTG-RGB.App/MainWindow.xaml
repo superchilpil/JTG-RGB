@@ -138,17 +138,19 @@
                         <Button Content="Manage devices  →" HorizontalAlignment="Right" Padding="12,6" Click="ViewDevices_Click"/>
                     </Grid>
                     <Border Background="{StaticResource PanelBrush}" BorderBrush="#292E3B" BorderThickness="1" CornerRadius="14" Padding="22" Margin="0,0,0,22">
-                        <StackPanel x:Name="DeviceEmptyState" HorizontalAlignment="Center" Margin="0,10,0,10">
-                            <Border Width="54" Height="54" CornerRadius="16" Background="#252638" Margin="0,0,0,12">
-                                <TextBlock Text="▣" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#AA9BFF"/>
-                            </Border>
-                            <TextBlock Text="No devices loaded yet" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Connect to the bundled OpenRGB backend to discover your hardware." Foreground="{StaticResource MutedBrush}" FontSize="11" TextAlignment="Center" TextWrapping="Wrap" Margin="0,7,0,14"/>
-                            <Button Content="Refresh device list" Click="Refresh_Click"/>
-                        </StackPanel>
-                        <ItemsControl x:Name="DeviceList" Visibility="Collapsed">
-                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                        </ItemsControl>
+                        <Grid>
+                            <StackPanel x:Name="DeviceEmptyState" HorizontalAlignment="Center" Margin="0,10,0,10">
+                                <Border Width="54" Height="54" CornerRadius="16" Background="#252638" Margin="0,0,0,12">
+                                    <TextBlock Text="▣" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#AA9BFF"/>
+                                </Border>
+                                <TextBlock Text="No devices loaded yet" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Connect to the bundled OpenRGB backend to discover your hardware." Foreground="{StaticResource MutedBrush}" FontSize="11" TextAlignment="Center" TextWrapping="Wrap" Margin="0,7,0,14"/>
+                                <Button Content="Refresh device list" Click="Refresh_Click"/>
+                            </StackPanel>
+                            <ItemsControl x:Name="DeviceList" Visibility="Collapsed">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </Grid>
                     </Border>
                     <Grid>
                         <TextBlock Text="Quick color" FontSize="17" FontWeight="SemiBold"/>
