@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private string _selectedEffect = "Static Color";
     private string _effectColorA = "#8B6CFF";
     private string _effectColorB = "#36C5F0";
+    private string _msiConnectionStatus = "Not connected to MSI Mystic Light.";
     private StackPanel? _effectEditorHost;
     private string _selectedProfile = "Default";
     private readonly OpenRgbBackendManager _backend = new();
@@ -123,6 +124,7 @@ public partial class MainWindow : Window
         msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
         msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), false));
         msiStack.Children.Add(msiButtons);
+        msiStack.Children.Add(Body(_msiConnectionStatus));
         msiStack.Children.Add(BuildMsiLedControls());
         msi.Child = msiStack;
         root.Children.Add(msi);
@@ -239,18 +241,40 @@ public partial class MainWindow : Window
     private UIElement BuildEffectColorPicker(string label, bool isFirstColor)
     {
         var current = isFirstColor ? _effectColorA : _effectColorB;
-        var section = new StackPanel { Margin = new Thickness(0, 6, 0, 10) };
+        var (hue, saturation, brightness) = RgbToHsv((Color)ColorConverter.ConvertFromString(current));
+        var section = new StackPanel { Margin = new Thickness(0, 8, 0, 14) };
         section.Children.Add(Heading(label));
-        var row = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
+
+        var previewRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 12) };
         var preview = new Border
         {
-            Width = 30,
-            Height = 30,
-            CornerRadius = new CornerRadius(6),
+            Width = 76,
+            Height = 76,
+            CornerRadius = new CornerRadius(12),
             Background = MakeBrush(current),
-            Margin = new Thickness(0, 0, 8, 0)
+            BorderBrush = MakeBrush("#555B70"),
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 0, 12, 0)
         };
-        row.Children.Add(preview);
+        previewRow.Children.Add(preview);
+        var previewInfo = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var hexLabel = new TextBlock { Text = current, FontSize = 17, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
+        previewInfo.Children.Add(hexLabel);
+        previewInfo.Children.Add(new TextBlock { Text = "Selected color preview", FontSize = 11, Foreground = MakeBrush("#969EB1"), Margin = new Thickness(0, 4, 0, 0) });
+        previewRow.Children.Add(previewInfo);
+        section.Children.Add(previewRow);
+
+        var hueSlider = new Slider { Minimum = 0, Maximum = 359, Value = hue, TickFrequency = 30, IsSnapToTickEnabled = false, Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
+        hueSlider.Background = BuildHueBrush();
+        AddColorSlider(section, "Hue", hueSlider);
+
+        var saturationSlider = new Slider { Minimum = 0, Maximum = 100, Value = saturation * 100, TickFrequency = 10, Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
+        AddColorSlider(section, "Saturation", saturationSlider);
+
+        var brightnessSlider = new Slider { Minimum = 0, Maximum = 100, Value = brightness * 100, TickFrequency = 10, Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
+        AddColorSlider(section, "Brightness", brightnessSlider);
+
+        var hexRow = new WrapPanel { Margin = new Thickness(0, 8, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         var hex = new TextBox
         {
             Text = current,
@@ -262,8 +286,8 @@ public partial class MainWindow : Window
             BorderBrush = MakeBrush("#34394A"),
             ToolTip = "HEX color, for example #8B6CFF"
         };
-        row.Children.Add(hex);
-        var applyHex = ActionButton("Use HEX", (_, _) =>
+        hexRow.Children.Add(hex);
+        hexRow.Children.Add(ActionButton("Use HEX", (_, _) =>
         {
             var candidate = hex.Text.Trim();
             if (!candidate.StartsWith('#')) candidate = "#" + candidate;
@@ -272,19 +296,27 @@ public partial class MainWindow : Window
                 MessageBox.Show("Enter a HEX color such as #8B6CFF.", "JTG-RGB — Invalid color", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
-            SetEffectColor(isFirstColor, candidate.ToUpperInvariant());
-            ShowPage("Effects");
-        }, false);
-        row.Children.Add(applyHex);
-        section.Children.Add(row);
 
-        var swatches = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+            var parsed = (Color)ColorConverter.ConvertFromString(candidate);
+            var hsv = RgbToHsv(parsed);
+            hueSlider.Value = hsv.Hue;
+            saturationSlider.Value = hsv.Saturation * 100;
+            brightnessSlider.Value = hsv.Brightness * 100;
+            UpdateSelectedColor();
+        }, false));
+        section.Children.Add(hexRow);
+
+        var swatches = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
         foreach (var color in Palette)
         {
             var swatch = ActionButton(" ", (_, _) =>
             {
-                SetEffectColor(isFirstColor, color);
-                ShowPage("Effects");
+                var parsed = (Color)ColorConverter.ConvertFromString(color);
+                var hsv = RgbToHsv(parsed);
+                hueSlider.Value = hsv.Hue;
+                saturationSlider.Value = hsv.Saturation * 100;
+                brightnessSlider.Value = hsv.Brightness * 100;
+                UpdateSelectedColor();
             }, false, MakeBrush(color));
             swatch.Width = 30;
             swatch.Height = 28;
@@ -293,7 +325,96 @@ public partial class MainWindow : Window
             swatches.Children.Add(swatch);
         }
         section.Children.Add(swatches);
+
+        hueSlider.ValueChanged += (_, _) => UpdateSelectedColor();
+        saturationSlider.ValueChanged += (_, _) => UpdateSelectedColor();
+        brightnessSlider.ValueChanged += (_, _) => UpdateSelectedColor();
+        UpdateSelectedColor();
+
+        void UpdateSelectedColor()
+        {
+            var color = HsvToRgb(hueSlider.Value, saturationSlider.Value / 100, brightnessSlider.Value / 100);
+            var hexColor = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+            preview.Background = new SolidColorBrush(color);
+            hexLabel.Text = hexColor;
+            hex.Text = hexColor;
+            saturationSlider.Background = BuildSaturationBrush(hueSlider.Value, brightnessSlider.Value / 100);
+            brightnessSlider.Background = BuildBrightnessBrush(hueSlider.Value, saturationSlider.Value / 100);
+            SetEffectColor(isFirstColor, hexColor);
+        }
+
         return section;
+    }
+
+    private static void AddColorSlider(Panel parent, string label, Slider slider)
+    {
+        parent.Children.Add(new TextBlock { Text = label, Foreground = MakeBrush("#C7CCDA"), FontSize = 11, Margin = new Thickness(0, 4, 0, 1) });
+        parent.Children.Add(slider);
+    }
+
+    private static LinearGradientBrush BuildHueBrush()
+    {
+        var brush = new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0.5), EndPoint = new System.Windows.Point(1, 0.5) };
+        for (var i = 0; i <= 6; i++)
+            brush.GradientStops.Add(new GradientStop(HsvToRgb(i * 60, 1, 1), i / 6d));
+        return brush;
+    }
+
+    private static LinearGradientBrush BuildSaturationBrush(double hue, double brightness)
+    {
+        var brush = new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0.5), EndPoint = new System.Windows.Point(1, 0.5) };
+        brush.GradientStops.Add(new GradientStop(HsvToRgb(hue, 0, brightness), 0));
+        brush.GradientStops.Add(new GradientStop(HsvToRgb(hue, 1, brightness), 1));
+        return brush;
+    }
+
+    private static LinearGradientBrush BuildBrightnessBrush(double hue, double saturation)
+    {
+        var brush = new LinearGradientBrush { StartPoint = new System.Windows.Point(0, 0.5), EndPoint = new System.Windows.Point(1, 0.5) };
+        brush.GradientStops.Add(new GradientStop(Colors.Black, 0));
+        brush.GradientStops.Add(new GradientStop(HsvToRgb(hue, saturation, 1), 1));
+        return brush;
+    }
+
+    private static (double Hue, double Saturation, double Brightness) RgbToHsv(Color color)
+    {
+        var r = color.R / 255d;
+        var g = color.G / 255d;
+        var b = color.B / 255d;
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+        double hue;
+        if (delta == 0) hue = 0;
+        else if (max == r) hue = 60 * (((g - b) / delta) % 6);
+        else if (max == g) hue = 60 * (((b - r) / delta) + 2);
+        else hue = 60 * (((r - g) / delta) + 4);
+        if (hue < 0) hue += 360;
+        var saturation = max == 0 ? 0 : delta / max;
+        return (hue, saturation, max);
+    }
+
+    private static Color HsvToRgb(double hue, double saturation, double brightness)
+    {
+        hue = ((hue % 360) + 360) % 360;
+        saturation = Math.Clamp(saturation, 0, 1);
+        brightness = Math.Clamp(brightness, 0, 1);
+        var chroma = brightness * saturation;
+        var x = chroma * (1 - Math.Abs((hue / 60) % 2 - 1));
+        var m = brightness - chroma;
+        var (r, g, b) = hue switch
+        {
+            < 60 => (chroma, x, 0d),
+            < 120 => (x, chroma, 0d),
+            < 180 => (0d, chroma, x),
+            < 240 => (0d, x, chroma),
+            < 300 => (x, 0d, chroma),
+            _ => (chroma, 0d, x)
+        };
+        return Color.FromRgb(
+            (byte)Math.Round((r + m) * 255),
+            (byte)Math.Round((g + m) * 255),
+            (byte)Math.Round((b + m) * 255));
     }
 
     private void SetEffectColor(bool isFirstColor, string color)
@@ -456,6 +577,7 @@ public partial class MainWindow : Window
         msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
         msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), false));
         msiStack.Children.Add(msiButtons);
+        msiStack.Children.Add(Body(_msiConnectionStatus));
         msiStack.Children.Add(BuildMsiLedControls());
         msiCard.Child = msiStack;
         root.Children.Add(msiCard);
@@ -863,23 +985,48 @@ public partial class MainWindow : Window
 
     private async Task ConnectMsiAsync()
     {
+        if (string.IsNullOrWhiteSpace(_msiSdkPath))
+        {
+            _msiConnectionStatus = "No MSI SDK path is configured. Choose the SDK DLL or use Download MSI SDK first.";
+            FooterStatus.Text = _msiConnectionStatus;
+            ShowPage(PageTitle.Text);
+            MessageBox.Show(_msiConnectionStatus, "JTG-RGB — MSI Mystic Light", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!File.Exists(_msiSdkPath))
+        {
+            _msiConnectionStatus = $"The saved MSI SDK file no longer exists: {_msiSdkPath}";
+            FooterStatus.Text = _msiConnectionStatus;
+            ShowPage(PageTitle.Text);
+            MessageBox.Show(_msiConnectionStatus + "\n\nChoose the DLL again or download it again.", "JTG-RGB — MSI Mystic Light", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var pageToReturnTo = PageTitle.Text;
+        _msiConnectionStatus = "Connecting to MSI Mystic Light…";
+        FooterStatus.Text = _msiConnectionStatus;
+        ShowPage(pageToReturnTo);
+
         try
         {
-            if (string.IsNullOrWhiteSpace(_msiSdkPath))
-            {
-                MessageBox.Show("Choose MysticLight_SDK_x64.dll from MSI's official Mystic Light SDK package first.", "JTG-RGB — MSI Mystic Light", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            _msiDevices = await Task.Run(() => _msi.Connect(_msiSdkPath));
-            FooterStatus.Text = _msiDevices.Count == 0
-                ? "MSI SDK connected, but it did not report any controllable lighting devices."
-                : $"Connected to MSI Mystic Light: {_msiDevices.Count} device type(s) discovered.";
-            ShowPage("Settings");
+            var path = _msiSdkPath;
+            _msiDevices = await Task.Run(() => _msi.Connect(path));
+            _msiConnectionStatus = _msiDevices.Count == 0
+                ? "MSI SDK loaded but reported no lighting zones."
+                : $"Connected to MSI Mystic Light: {_msiDevices.Count} device type(s), {_msiDevices.Sum(d => d.LedCount)} LED zone(s).";
+            FooterStatus.Text = _msiConnectionStatus;
+            ShowPage(pageToReturnTo);
         }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException or InvalidDataException or DllNotFoundException or EntryPointNotFoundException or BadImageFormatException or PlatformNotSupportedException or MarshalDirectiveException or ArgumentException)
+        catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "JTG-RGB — MSI Mystic Light", MessageBoxButton.OK, MessageBoxImage.Information);
+            _msiConnectionStatus = $"MSI connection failed: {ex.Message}";
+            FooterStatus.Text = _msiConnectionStatus;
+            ShowPage(pageToReturnTo);
+            MessageBox.Show(
+                $"JTG-RGB couldn't connect to the MSI Mystic Light SDK.\n\n{ex.GetType().Name}: {ex.Message}\n\nConfirm MSI Center is installed, the Mystic Light feature is installed and running, and try running JTG-RGB as administrator. If the SDK reports status -2, it timed out waiting for MSI's service.",
+                "JTG-RGB — MSI Mystic Light",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
-}
