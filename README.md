@@ -45,6 +45,9 @@ SignalRGB is an independent product and is not affiliated with JTG-RGB. Compatib
 - If a compatible backend is placed at `vendor/OpenRGB/OpenRGB.exe` beside the published app, JTG-RGB can attempt to launch it with `--server`. This repository does **not** currently include the OpenRGB binary or PawnIO driver.
 - PawnIO status is only a registry/service-registration check. It does not prove the driver is loaded or that a specific motherboard/RAM device is supported.
 
+- An optional MSI Mystic Light SDK adapter is available for MSI lighting devices. JTG-RGB does not redistribute MSI's native SDK DLLs. Download the official [Mystic Light SDK](https://www.msi.com/Landing/mystic-light-rgb-gaming-pc/download), extract it, then use **Settings → MSI Mystic Light Backend → Choose MSI SDK DLL** and select `MysticLight_SDK_x64.dll`. MSI Center/Mystic Light must be installed and running for the SDK to work. Some SDK operations may require administrator permissions; JTG-RGB will not silently elevate.
+- When connected, the MSI SDK adapter enumerates device types and LED/zone counts and applies the selected static color across the devices reported by the SDK. Dynamic screen-sync effects and fine-grained per-zone selection are not yet implemented for this backend.
+
 ### Testing the current integration
 
 1. Install a compatible Windows x64 OpenRGB build. The OpenRGB 1.0 release-candidate 2 Windows PawnIO build is the current intended compatibility target for the initial SDK-v5 integration.
