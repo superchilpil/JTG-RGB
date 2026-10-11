@@ -1,4 +1,6 @@
 using System.IO;
+using System.IO.Compression;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -34,6 +36,80 @@ public sealed class MsiMysticLightClient : IDisposable
             if (File.Exists(candidate)) return candidate;
         }
         return null;
+    }
+
+    public static async Task<string> DownloadSdkToAppDataAsync(CancellationToken cancellationToken = default)
+    {
+        // This is an explicit user-triggered download from MSI's official download host.
+        const string downloadUrl = "https://download.msi.com/uti_exe/Mystic_light_SDK.zip";
+        const long maxArchiveBytes = 100L * 1024 * 1024;
+        const long maxDllBytes = 50L * 1024 * 1024;
+        var settingsDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            SettingsDirectoryName,
+            "MSI");
+        Directory.CreateDirectory(settingsDirectory);
+
+        var archivePath = Path.Combine(settingsDirectory, "Mystic_light_SDK.zip");
+        var tempArchivePath = archivePath + ".download";
+        var destinationPath = Path.Combine(settingsDirectory, "MysticLight_SDK_x64.dll");
+        var tempDllPath = destinationPath + ".download";
+
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+            using var response = await http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            if (response.Content.Headers.ContentLength is long contentLength && contentLength > maxArchiveBytes)
+                throw new InvalidDataException("The MSI SDK archive is larger than the allowed download size.");
+
+            await using (var networkStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+            await using (var output = new FileStream(tempArchivePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            {
+                var buffer = new byte[81920];
+                long totalBytes = 0;
+                int read;
+                while ((read = await networkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    totalBytes += read;
+                    if (totalBytes > maxArchiveBytes)
+                        throw new InvalidDataException("The MSI SDK archive exceeded the allowed download size.");
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            using (var archive = ZipFile.OpenRead(tempArchivePath))
+            {
+                var sdkEntry = archive.Entries.FirstOrDefault(entry =>
+                    string.Equals(Path.GetFileName(entry.FullName.Replace('/', Path.DirectorySeparatorChar)), "MysticLight_SDK_x64.dll", StringComparison.OrdinalIgnoreCase));
+
+                if (sdkEntry is null)
+                    throw new InvalidDataException("The MSI SDK ZIP did not contain MysticLight_SDK_x64.dll.");
+                if (sdkEntry.Length <= 0 || sdkEntry.Length > maxDllBytes)
+                    throw new InvalidDataException("The MSI SDK DLL has an unexpected file size.");
+
+                await using var entryStream = sdkEntry.Open();
+                await using var dllStream = new FileStream(tempDllPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+                await entryStream.CopyToAsync(dllStream, cancellationToken).ConfigureAwait(false);
+            }
+
+            File.Move(tempDllPath, destinationPath, overwrite: true);
+            SaveSdkPath(destinationPath);
+            return destinationPath;
+        }
+        finally
+        {
+            TryDelete(tempArchivePath);
+            TryDelete(tempDllPath);
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     public static string? LoadSavedSdkPath()
