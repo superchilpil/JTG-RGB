@@ -503,13 +503,13 @@ public partial class MainWindow : Window
     {
         if (!IsMsiMotherboardDetected()) return;
 
-        var bundledSdk = MsiMysticLightClient.FindBundledSdkPath();
-        if (bundledSdk is not null)
+        var sdkToUse = MsiMysticLightClient.FindBundledSdkPath() ?? _msiSdkPath;
+        if (!string.IsNullOrWhiteSpace(sdkToUse) && File.Exists(sdkToUse))
         {
-            _msiSdkPath = bundledSdk;
+            _msiSdkPath = sdkToUse;
             try
             {
-                _msiDevices = await Task.Run(() => _msi.Connect(bundledSdk));
+                _msiDevices = await Task.Run(() => _msi.Connect(sdkToUse));
                 FooterStatus.Text = $"MSI motherboard detected • Mystic Light connected ({_msiDevices.Count} device type(s))";
                 return;
             }
