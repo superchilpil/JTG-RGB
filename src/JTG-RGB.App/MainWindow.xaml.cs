@@ -802,7 +802,7 @@ public partial class MainWindow : Window
                 var targets = new List<string>();
                 if (appliedToOpenRgb) targets.Add($"{_devices.Count} OpenRGB controller(s)");
                 if (appliedToMsi) targets.Add($"{_msiDevices.Count} MSI lighting device(s)");
-                FooterStatus.Text = $"Applied {_selectedColor} to {string.Join(" + ", targets)}";
+                FooterStatus.Text = $"Sent {_selectedColor} to {string.Join(" + ", targets)}. SDK accepted the command; visual output still needs confirmation.";
             }
             else
             {
