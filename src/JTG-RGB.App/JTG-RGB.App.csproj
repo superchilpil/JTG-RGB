@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>JTG-RGB</AssemblyName>
+    <RootNamespace>JtgRgb.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+</Project>
