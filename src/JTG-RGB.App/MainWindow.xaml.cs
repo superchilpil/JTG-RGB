@@ -260,8 +260,9 @@ public partial class MainWindow : Window
         msiStack.Children.Add(Body("JTG-RGB can use MSI's Mystic Light SDK independently of OpenRGB. If the SDK DLL is packaged beside JTG-RGB, it is detected automatically; otherwise choose the DLL from MSI's official SDK package. MSI Center must be installed with the Mystic Light feature enabled and running."));
         msiStack.Children.Add(Body(_msiSdkPath is null ? "SDK path not configured." : $"SDK: {_msiSdkPath}"));
         var msiButtons = new WrapPanel();
+        msiButtons.Children.Add(ActionButton("Download MSI SDK", async (_, _) => await DownloadMsiSdkAsync(connectAfterDownload: true), true));
         msiButtons.Children.Add(ActionButton("Choose MSI SDK DLL…", (_, _) => ChooseMsiSdkDll(), false));
-        msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), true));
+        msiButtons.Children.Add(ActionButton("Connect / refresh MSI devices", async (_, _) => await ConnectMsiAsync(), false));
         msiStack.Children.Add(msiButtons);
         msiStack.Children.Add(Body(_msiDevices.Count == 0 ? "No MSI lighting zones loaded." : string.Join("\\n", _msiDevices.Select(d => d.DisplayName))));
         msiCard.Child = msiStack;
