@@ -21,6 +21,7 @@ public sealed class MsiMysticLightClient : IDisposable
     private InitializeDelegate? _initialize;
     private GetDeviceInfoDelegate? _getDeviceInfo;
     private SetLedColorDelegate? _setLedColor;
+    private GetLedInfoDelegate? _getLedInfo;
     private IReadOnlyList<MsiLightingDevice> _devices = [];
 
     public bool IsInitialized => _library != IntPtr.Zero;
@@ -155,6 +156,7 @@ public sealed class MsiMysticLightClient : IDisposable
                 _initialize = LoadDelegate<InitializeDelegate>("MLAPI_Initialize");
                 _getDeviceInfo = LoadDelegate<GetDeviceInfoDelegate>("MLAPI_GetDeviceInfo");
                 _setLedColor = LoadDelegate<SetLedColorDelegate>("MLAPI_SetLedColor");
+                _getLedInfo = LoadDelegate<GetLedInfoDelegate>("MLAPI_GetLedInfo");
 
                 var initStatus = _initialize();
                 if (initStatus != Ok)
@@ -172,7 +174,27 @@ public sealed class MsiMysticLightClient : IDisposable
                 {
                     if (!uint.TryParse(counts[i], out var ledCount) || ledCount == 0)
                         continue;
-                    found.Add(new MsiLightingDevice(types[i], ledCount));
+                    var ledNames = new List<string>();
+                    for (uint ledIndex = 0; ledIndex < ledCount; ledIndex++)
+                    {
+                        var displayName = $"{types[i]} — LED {ledIndex + 1}";
+                        try
+                        {
+                            if (_getLedInfo is not null &&
+                                _getLedInfo(types[i], ledIndex, out var sdkName, out _) == Ok &&
+                                !string.IsNullOrWhiteSpace(sdkName))
+                            {
+                                displayName = sdkName;
+                            }
+                        }
+                        catch (Exception ex) when (ex is MarshalDirectiveException or InvalidOperationException or ArgumentException)
+                        {
+                            // Keep a stable fallback label if this SDK version does not return LED metadata.
+                        }
+                        ledNames.Add(displayName);
+                    }
+
+                    found.Add(new MsiLightingDevice(types[i], ledCount, ledNames));
                 }
 
                 _devices = found;
@@ -186,23 +208,38 @@ public sealed class MsiMysticLightClient : IDisposable
         }
     }
 
-    public void SetAllDevicesColor(byte red, byte green, byte blue)
+    public void SetLedColor(string deviceType, uint ledIndex, byte red, byte green, byte blue)
     {
         lock (_sync)
         {
             if (!IsInitialized || _setLedColor is null)
                 throw new InvalidOperationException("MSI Mystic Light is not connected. Select the official MSI SDK DLL and connect first.");
 
-            foreach (var device in _devices)
+            var device = _devices.FirstOrDefault(d => string.Equals(d.Type, deviceType, StringComparison.Ordinal));
+            if (device is null || ledIndex >= device.LedCount)
+                throw new InvalidOperationException($"The MSI SDK did not report {deviceType}, LED {ledIndex}.");
+
+            var status = _setLedColor(deviceType, ledIndex, red, green, blue);
+            if (status != Ok)
             {
-                for (uint ledIndex = 0; ledIndex < device.LedCount; ledIndex++)
+                var explanation = status switch
                 {
-                    var status = _setLedColor(device.Type, ledIndex, red, green, blue);
-                    if (status != Ok)
-                        throw new InvalidOperationException($"MSI SDK failed to set {device.Type}, LED {ledIndex} (status {status}).");
-                }
+                    -2 => "The MSI SDK request timed out. Check that MSI Center and Mystic Light are running.",
+                    -3 => "The installed MSI Center/Mystic Light version may not be supported by this SDK.",
+                    -102 => "The SDK could not find this lighting zone.",
+                    -103 => "This lighting zone's current effect may not support direct color changes.",
+                    _ => "Check MSI Center/Mystic Light and the SDK compatibility."
+                };
+                throw new InvalidOperationException($"MSI SDK failed to set {deviceType}, LED {ledIndex} (status {status}). {explanation}");
             }
         }
+    }
+
+    public void SetAllDevicesColor(byte red, byte green, byte blue)
+    {
+        foreach (var device in _devices)
+            for (uint ledIndex = 0; ledIndex < device.LedCount; ledIndex++)
+                SetLedColor(device.Type, ledIndex, red, green, blue);
     }
 
     public void Dispose()
@@ -227,6 +264,7 @@ public sealed class MsiMysticLightClient : IDisposable
         _initialize = null;
         _getDeviceInfo = null;
         _setLedColor = null;
+        _getLedInfo = null;
         _devices = [];
         _sdkPath = null;
         SetDllDirectory(null);
@@ -247,6 +285,13 @@ public sealed class MsiMysticLightClient : IDisposable
         [Out, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_BSTR)] out string[] deviceTypes,
         [Out, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_BSTR)] out string[] ledCounts);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private delegate int GetLedInfoDelegate(
+        [In, MarshalAs(UnmanagedType.BStr)] string deviceType,
+        [In, MarshalAs(UnmanagedType.U4)] uint ledIndex,
+        [Out, MarshalAs(UnmanagedType.BStr)] out string ledName,
+        [Out, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_BSTR)] out string[] supportedStyles);
+
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     private delegate int SetLedColorDelegate(
         [In, MarshalAs(UnmanagedType.BStr)] string deviceType,
@@ -256,7 +301,9 @@ public sealed class MsiMysticLightClient : IDisposable
         [In, MarshalAs(UnmanagedType.U4)] uint blue);
 }
 
-public sealed record MsiLightingDevice(string Type, uint LedCount)
+public sealed record MsiLightingDevice(string Type, uint LedCount, IReadOnlyList<string> LedNames)
 {
     public string DisplayName => $"{Type} ({LedCount} lighting zone(s)/LEDs)";
+    public string GetLedName(uint index) =>
+        index < LedNames.Count ? LedNames[(int)index] : $"{Type} — LED {index + 1}";
 }
