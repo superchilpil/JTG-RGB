@@ -22,6 +22,8 @@ public sealed class MsiMysticLightClient : IDisposable
     private GetDeviceInfoDelegate? _getDeviceInfo;
     private SetLedColorDelegate? _setLedColor;
     private GetLedInfoDelegate? _getLedInfo;
+    private GetLedStyleDelegate? _getLedStyle;
+    private SetLedStyleDelegate? _setLedStyle;
     private IReadOnlyList<MsiLightingDevice> _devices = [];
 
     public bool IsInitialized => _library != IntPtr.Zero;
@@ -157,6 +159,8 @@ public sealed class MsiMysticLightClient : IDisposable
                 _getDeviceInfo = LoadDelegate<GetDeviceInfoDelegate>("MLAPI_GetDeviceInfo");
                 _setLedColor = LoadDelegate<SetLedColorDelegate>("MLAPI_SetLedColor");
                 _getLedInfo = LoadDelegate<GetLedInfoDelegate>("MLAPI_GetLedInfo");
+                _getLedStyle = LoadDelegate<GetLedStyleDelegate>("MLAPI_GetLedStyle");
+                _setLedStyle = LoadDelegate<SetLedStyleDelegate>("MLAPI_SetLedStyle");
 
                 var initStatus = _initialize();
                 if (initStatus != Ok)
@@ -175,16 +179,18 @@ public sealed class MsiMysticLightClient : IDisposable
                     if (!uint.TryParse(counts[i], out var ledCount) || ledCount == 0)
                         continue;
                     var ledNames = new List<string>();
+                    var ledStyles = new List<IReadOnlyList<string>>();
                     for (uint ledIndex = 0; ledIndex < ledCount; ledIndex++)
                     {
+                        IReadOnlyList<string> supportedStyles = [];
                         var displayName = $"{types[i]} — LED {ledIndex + 1}";
                         try
                         {
                             if (_getLedInfo is not null &&
-                                _getLedInfo(types[i], ledIndex, out var sdkName, out _) == Ok &&
-                                !string.IsNullOrWhiteSpace(sdkName))
+                                _getLedInfo(types[i], ledIndex, out var sdkName, out var styles) == Ok)
                             {
-                                displayName = sdkName;
+                                if (!string.IsNullOrWhiteSpace(sdkName)) displayName = sdkName;
+                                supportedStyles = styles ?? [];
                             }
                         }
                         catch (Exception ex) when (ex is MarshalDirectiveException or InvalidOperationException or ArgumentException)
@@ -192,9 +198,10 @@ public sealed class MsiMysticLightClient : IDisposable
                             // Keep a stable fallback label if this SDK version does not return LED metadata.
                         }
                         ledNames.Add(displayName);
+                        ledStyles.Add(supportedStyles);
                     }
 
-                    found.Add(new MsiLightingDevice(types[i], ledCount, ledNames));
+                    found.Add(new MsiLightingDevice(types[i], ledCount, ledNames, ledStyles));
                 }
 
                 _devices = found;
@@ -218,6 +225,18 @@ public sealed class MsiMysticLightClient : IDisposable
             var device = _devices.FirstOrDefault(d => string.Equals(d.Type, deviceType, StringComparison.Ordinal));
             if (device is null || ledIndex >= device.LedCount)
                 throw new InvalidOperationException($"The MSI SDK did not report {deviceType}, LED {ledIndex}.");
+
+            var supportedStyles = device.LedStyles.Count > (int)ledIndex ? device.LedStyles[(int)ledIndex] : [];
+            // Mystic Light commonly requires switching the zone to a color-capable style
+            // before MLAPI_SetLedColor takes effect. Prefer Static, then Direct Lighting Control.
+            var targetStyle = supportedStyles.FirstOrDefault(s => string.Equals(s, "Static", StringComparison.OrdinalIgnoreCase))
+                ?? supportedStyles.FirstOrDefault(s => string.Equals(s, "Direct Lighting Control", StringComparison.OrdinalIgnoreCase));
+            if (targetStyle is not null && _setLedStyle is not null)
+            {
+                var styleStatus = _setLedStyle(deviceType, ledIndex, targetStyle);
+                if (styleStatus != Ok)
+                    throw new InvalidOperationException($"MSI SDK could not switch {deviceType}, LED {ledIndex} to '{targetStyle}' (status {styleStatus}). Supported styles: {string.Join(", ", supportedStyles)}");
+            }
 
             var status = _setLedColor(deviceType, ledIndex, red, green, blue);
             if (status != Ok)
@@ -265,6 +284,8 @@ public sealed class MsiMysticLightClient : IDisposable
         _getDeviceInfo = null;
         _setLedColor = null;
         _getLedInfo = null;
+        _getLedStyle = null;
+        _setLedStyle = null;
         _devices = [];
         _sdkPath = null;
         SetDllDirectory(null);
@@ -292,7 +313,19 @@ public sealed class MsiMysticLightClient : IDisposable
         [Out, MarshalAs(UnmanagedType.BStr)] out string ledName,
         [Out, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_BSTR)] out string[] supportedStyles);
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private delegate int GetLedStyleDelegate(
+        [In, MarshalAs(UnmanagedType.BStr)] string deviceType,
+        [In, MarshalAs(UnmanagedType.U4)] uint ledIndex,
+        [Out, MarshalAs(UnmanagedType.BStr)] out string style);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
+    private delegate int SetLedStyleDelegate(
+        [In, MarshalAs(UnmanagedType.BStr)] string deviceType,
+        [In, MarshalAs(UnmanagedType.U4)] uint ledIndex,
+        [In, MarshalAs(UnmanagedType.BStr)] string style);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     private delegate int SetLedColorDelegate(
         [In, MarshalAs(UnmanagedType.BStr)] string deviceType,
         [In, MarshalAs(UnmanagedType.U4)] uint ledIndex,
@@ -301,7 +334,7 @@ public sealed class MsiMysticLightClient : IDisposable
         [In, MarshalAs(UnmanagedType.U4)] uint blue);
 }
 
-public sealed record MsiLightingDevice(string Type, uint LedCount, IReadOnlyList<string> LedNames)
+public sealed record MsiLightingDevice(string Type, uint LedCount, IReadOnlyList<string> LedNames, IReadOnlyList<IReadOnlyList<string>> LedStyles)
 {
     public string DisplayName => $"{Type} ({LedCount} lighting zone(s)/LEDs)";
     public string GetLedName(uint index) =>
