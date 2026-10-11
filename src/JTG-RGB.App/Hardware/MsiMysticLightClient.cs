@@ -229,7 +229,9 @@ public sealed class MsiMysticLightClient : IDisposable
             var supportedStyles = device.LedStyles.Count > (int)ledIndex ? device.LedStyles[(int)ledIndex] : [];
             // Mystic Light commonly requires switching the zone to a color-capable style
             // before MLAPI_SetLedColor takes effect. Prefer Static, then Direct Lighting Control.
+            // MSI calls its solid/static-color mode "Steady" on many motherboard SDK versions.
             var targetStyle = supportedStyles.FirstOrDefault(s => s.Contains("static", StringComparison.OrdinalIgnoreCase))
+                ?? supportedStyles.FirstOrDefault(s => string.Equals(s, "Steady", StringComparison.OrdinalIgnoreCase))
                 ?? supportedStyles.FirstOrDefault(s => string.Equals(s, "Direct Lighting Control", StringComparison.OrdinalIgnoreCase));
             if (targetStyle is null)
                 throw new InvalidOperationException($"MSI SDK did not report a supported static/direct-color style for {deviceType}, LED {ledIndex}. Reported styles: {(supportedStyles.Count == 0 ? "(none; SDK style metadata unavailable)" : string.Join(", ", supportedStyles))}. The zone may not support direct color changes through this SDK.");
