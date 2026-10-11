@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using JtgRgb.App.Hardware;
 
 namespace JtgRgb.App;
 
@@ -10,6 +11,10 @@ public partial class MainWindow : Window
     private string _selectedColor = "#8B6CFF";
     private string _selectedEffect = "Static Color";
     private string _selectedProfile = "Default";
+    private readonly OpenRgbBackendManager _backend = new();
+    private IReadOnlyList<OpenRgbDevice> _devices = [];
+    private StackPanel? _deviceListHost;
+    private TextBlock? _pawnIoStatusText;
 
     private static readonly string[] Palette =
     [
@@ -19,7 +24,12 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Loaded += (_, _) => FooterStatus.Text = "Ready • Hardware integration is the next milestone";
+        Loaded += async (_, _) =>
+        {
+            FooterStatus.Text = "Ready • OpenRGB integration available";
+            await UpdatePawnIoStatusAsync();
+        };
+        Closed += async (_, _) => await _backend.DisposeAsync();
     }
 
     private void Nav_Click(object sender, RoutedEventArgs e)
@@ -65,26 +75,41 @@ public partial class MainWindow : Window
     private UIElement BuildDevicesPage()
     {
         var root = PageStack();
-        root.Children.Add(SectionHeading("Connected devices", "Your compatible RGB hardware will appear here once the OpenRGB backend is integrated."));
-        var status = Card();
-        var inner = new StackPanel();
-        inner.Children.Add(IconTile("▣", "#29243F", "#B9A9FF"));
-        inner.Children.Add(Heading("No devices discovered yet"));
-        inner.Children.Add(Body("This build is focused on the interface. Device discovery, device details, zones, and hardware controls will be connected in the next milestone."));
-        inner.Children.Add(ActionButton("Refresh devices", (_, _) => Refresh_Click(this, new RoutedEventArgs()), true));
-        status.Child = inner;
-        root.Children.Add(status);
-        var info = Card();
-        info.Child = new StackPanel
+        root.Children.Add(SectionHeading("Connected devices", "Connect to the local OpenRGB SDK server to discover supported RGB hardware."));
+
+        var connection = Card();
+        var connectionStack = new StackPanel();
+        connectionStack.Children.Add(SmallHeading("OPENRGB BACKEND"));
+        connectionStack.Children.Add(Heading(_backend.IsBundledBackendAvailable ? "Bundled backend available" : "Connect to OpenRGB"));
+        connectionStack.Children.Add(Body("JTG-RGB connects to the OpenRGB SDK at 127.0.0.1:6742. If a compatible OpenRGB.exe is bundled beside the app, JTG-RGB can start it automatically. No driver is installed silently."));
+        var buttons = new WrapPanel();
+        buttons.Children.Add(ActionButton("Connect / refresh devices", async (_, _) => await ConnectAndRefreshDevicesAsync(), true));
+        buttons.Children.Add(ActionButton("Rescan hardware", async (_, _) => await RescanDevicesAsync(), false));
+        connectionStack.Children.Add(buttons);
+        connection.Child = connectionStack;
+        root.Children.Add(connection);
+
+        var devicesCard = Card();
+        var devicesStack = new StackPanel();
+        devicesStack.Children.Add(Heading("Detected hardware"));
+        devicesStack.Children.Add(Body(_devices.Count == 0 ? "No devices have been loaded yet. Connect to OpenRGB to populate this list." : $"{_devices.Count} controller(s) found."));
+        _deviceListHost = new StackPanel();
+        devicesStack.Children.Add(_deviceListHost);
+        devicesCard.Child = devicesStack;
+        root.Children.Add(devicesCard);
+        RenderDeviceCards();
+
+        var pawn = Card();
+        pawn.Child = new StackPanel
         {
             Children =
             {
-                SmallHeading("BACKEND"),
-                Heading("OpenRGB • Not connected"),
-                Body("The final app will manage its bundled backend automatically. PawnIO setup and permission checks will be presented here when needed.")
+                SmallHeading("LOW-LEVEL ACCESS"),
+                Heading("PawnIO"),
+                Body("PawnIO is an optional driver dependency used by compatible OpenRGB builds for some motherboard and memory devices. Some hardware access may require running OpenRGB with administrator privileges; JTG-RGB will not silently elevate or install drivers.")
             }
         };
-        root.Children.Add(info);
+        root.Children.Add(pawn);
         return root;
     }
 
@@ -189,7 +214,8 @@ public partial class MainWindow : Window
     private UIElement BuildSettingsPage()
     {
         var root = PageStack();
-        root.Children.Add(SectionHeading("Application settings", "These controls establish the settings layout. Persistence and backend actions will be wired in later."));
+        root.Children.Add(SectionHeading("Application settings", "Configure the hardware backend and inspect low-level driver readiness."));
+
         var appearance = Card();
         var appearanceStack = new StackPanel();
         appearanceStack.Children.Add(SmallHeading("APPEARANCE"));
@@ -202,17 +228,35 @@ public partial class MainWindow : Window
         appearance.Child = appearanceStack;
         root.Children.Add(appearance);
 
-        var behavior = Card();
-        var behaviorStack = new StackPanel();
-        behaviorStack.Children.Add(SmallHeading("STARTUP & BACKEND"));
-        behaviorStack.Children.Add(SettingToggle("Start JTG-RGB with Windows", "Launch the app when you sign in."));
-        behaviorStack.Children.Add(SettingToggle("Start minimized to tray", "Keep the dashboard out of the way until opened."));
-        behaviorStack.Children.Add(SettingToggle("Launch bundled OpenRGB backend", "Managed backend lifecycle is planned; this toggle is not active yet."));
-        behaviorStack.Children.Add(SettingToggle("Check PawnIO availability", "Detect supported low-level access requirements."));
-        behavior.Child = behaviorStack;
-        root.Children.Add(behavior);
+        var backendCard = Card();
+        var backendStack = new StackPanel();
+        backendStack.Children.Add(SmallHeading("HARDWARE BACKEND"));
+        backendStack.Children.Add(Heading("OpenRGB SDK"));
+        backendStack.Children.Add(Body("Endpoint: 127.0.0.1:6742. JTG-RGB uses OpenRGB's local SDK protocol for device discovery and color commands."));
+        backendStack.Children.Add(Body(_backend.IsBundledBackendAvailable
+            ? "A bundled OpenRGB executable was found. Connect to an existing SDK server or start the bundled backend."
+            : "No bundled OpenRGB executable is present in this build. Start OpenRGB with its SDK server enabled, or place a compatible OpenRGB.exe at vendor\\OpenRGB\\OpenRGB.exe."));
+        var backendButtons = new WrapPanel();
+        backendButtons.Children.Add(ActionButton("Connect / refresh devices", async (_, _) => await ConnectAndRefreshDevicesAsync(), true));
+        backendButtons.Children.Add(ActionButton("Rescan hardware", async (_, _) => await RescanDevicesAsync(), false));
+        backendStack.Children.Add(backendButtons);
+        backendCard.Child = backendStack;
+        root.Children.Add(backendCard);
+
+        var pawnCard = Card();
+        var pawnStack = new StackPanel();
+        pawnStack.Children.Add(SmallHeading("LOW-LEVEL ACCESS"));
+        pawnStack.Children.Add(Heading("PawnIO driver"));
+        _pawnIoStatusText = Body("Checking whether the PawnIO driver service is registered…");
+        pawnStack.Children.Add(_pawnIoStatusText);
+        pawnStack.Children.Add(ActionButton("Check PawnIO status", async (_, _) => await UpdatePawnIoStatusAsync(), false));
+        pawnStack.Children.Add(Body("This check only looks for the Windows driver service registration; it does not guarantee the driver is loaded or that a particular device is supported. PawnIO will not be installed automatically. Some OpenRGB devices may require the backend to be run as administrator."));
+        pawnCard.Child = pawnStack;
+        root.Children.Add(pawnCard);
+        _ = UpdatePawnIoStatusAsync();
+
         var licensing = Card();
-        licensing.Child = new StackPanel { Children = { SmallHeading("THIRD-PARTY COMPONENTS"), Heading("OpenRGB + PawnIO"), Body("Before distribution, the project will pin compatible versions and ship the applicable license notices and source obligations. PawnIO redistribution will be verified separately.") } };
+        licensing.Child = new StackPanel { Children = { SmallHeading("THIRD-PARTY COMPONENTS"), Heading("OpenRGB + PawnIO"), Body("OpenRGB and PawnIO are separate components with separate distribution terms. The bundled OpenRGB release and its corresponding source/notices must be pinned before redistributing it; PawnIO bundling also requires a separate license review.") } };
         root.Children.Add(licensing);
         return root;
     }
@@ -250,22 +294,133 @@ public partial class MainWindow : Window
         return button;
     }
 
-    private void Refresh_Click(object sender, RoutedEventArgs e)
+    private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
-        BackendStatusText.Text = "Not connected";
-        BackendDetailText.Text = "Hardware discovery is not implemented in this interface build.";
-        DeviceCountText.Text = "—";
-        FooterStatus.Text = "Refresh requested • OpenRGB integration is pending";
+        await ConnectAndRefreshDevicesAsync();
+    }
+
+    private async Task ConnectAndRefreshDevicesAsync()
+    {
+        FooterStatus.Text = "Connecting to OpenRGB SDK…";
+        BackendStatusText.Text = "Connecting…";
+        BackendDetailText.Text = "Connecting to 127.0.0.1:6742";
+        try
+        {
+            await _backend.ConnectAsync();
+            _devices = await _backend.Client.GetDevicesAsync();
+            BackendStatusText.Text = "Connected";
+            BackendDetailText.Text = $"OpenRGB SDK protocol {_backend.Client.ProtocolVersion}";
+            DeviceCountText.Text = _devices.Count.ToString();
+            FooterStatus.Text = $"OpenRGB connected • {_devices.Count} controller(s) detected";
+            RenderDeviceCards();
+        }
+        catch (Exception ex) when (ex is IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException or UnauthorizedAccessException)
+        {
+            BackendStatusText.Text = "Not connected";
+            BackendDetailText.Text = ex.Message;
+            DeviceCountText.Text = "—";
+            FooterStatus.Text = "OpenRGB connection failed";
+            MessageBox.Show(ex.Message, "JTG-RGB — OpenRGB connection", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private async Task RescanDevicesAsync()
+    {
+        try
+        {
+            if (!_backend.Client.IsConnected) await _backend.ConnectAsync();
+            await _backend.Client.RequestRescanAsync();
+            await Task.Delay(800);
+            await ConnectAndRefreshDevicesAsync();
+        }
+        catch (Exception ex) when (ex is IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException or UnauthorizedAccessException)
+        {
+            FooterStatus.Text = "OpenRGB rescan failed";
+            MessageBox.Show(ex.Message, "JTG-RGB — Rescan", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private void RenderDeviceCards()
+    {
+        if (_deviceListHost is null) return;
+        _deviceListHost.Children.Clear();
+        foreach (var device in _devices)
+        {
+            var card = new Border
+            {
+                Background = MakeBrush("#202431"),
+                BorderBrush = MakeBrush("#34394A"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(14),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var details = new StackPanel();
+            details.Children.Add(new TextBlock { Text = device.Name, Foreground = Brushes.White, FontWeight = FontWeights.SemiBold, FontSize = 13, TextWrapping = TextWrapping.Wrap });
+            details.Children.Add(new TextBlock { Text = $"{device.Vendor} • {device.LedCount} LED(s)", Foreground = MakeBrush("#969EB1"), FontSize = 11, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap });
+            if (!string.IsNullOrWhiteSpace(device.Description))
+                details.Children.Add(new TextBlock { Text = device.Description, Foreground = MakeBrush("#777F94"), FontSize = 10, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
+            Grid.SetColumn(details, 0);
+            row.Children.Add(details);
+            var apply = ActionButton("Apply selected color", async (_, _) => await ApplyColorToDeviceAsync(device), false);
+            apply.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(apply, 1);
+            row.Children.Add(apply);
+            card.Child = row;
+            _deviceListHost.Children.Add(card);
+        }
+        if (_devices.Count == 0)
+            _deviceListHost.Children.Add(Body("No controllers detected. Make sure OpenRGB is running and its SDK server is enabled."));
+    }
+
+    private async Task ApplyColorToDeviceAsync(OpenRgbDevice device)
+    {
+        try
+        {
+            var color = (Color)ColorConverter.ConvertFromString(_selectedColor);
+            await _backend.Client.SetDeviceColorAsync(device, color.R, color.G, color.B);
+            FooterStatus.Text = $"Applied {_selectedColor} to {device.Name}";
+        }
+        catch (Exception ex) when (ex is IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException)
+        {
+            FooterStatus.Text = $"Could not update {device.Name}";
+            MessageBox.Show(ex.Message, "JTG-RGB — Apply color", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private async Task UpdatePawnIoStatusAsync()
+    {
+        var status = await _backend.GetPawnIoStatusAsync();
+        if (_pawnIoStatusText is not null) _pawnIoStatusText.Text = status;
     }
 
     private void ExploreEffects_Click(object sender, RoutedEventArgs e) => ShowPage("Effects");
     private void ViewDevices_Click(object sender, RoutedEventArgs e) => ShowPage("Devices");
 
-    private void Color_Click(object sender, RoutedEventArgs e)
+    private async void Color_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string color }) return;
         _selectedColor = color;
         SelectedColorText.Text = $"Selected: {_selectedColor}";
-        FooterStatus.Text = $"Color selected: {_selectedColor} • Not applied: hardware control is not connected";
+        if (!_backend.Client.IsConnected || _devices.Count == 0)
+        {
+            FooterStatus.Text = $"Color selected: {_selectedColor} • Connect to OpenRGB to apply it";
+            return;
+        }
+
+        try
+        {
+            var rgb = (Color)ColorConverter.ConvertFromString(_selectedColor);
+            await _backend.Client.SetAllDevicesColorAsync(_devices, rgb.R, rgb.G, rgb.B);
+            FooterStatus.Text = $"Applied {_selectedColor} to {_devices.Count} controller(s)";
+        }
+        catch (Exception ex) when (ex is IOException or SocketException or TimeoutException or InvalidOperationException or InvalidDataException)
+        {
+            FooterStatus.Text = "Could not apply color to all devices";
+            MessageBox.Show(ex.Message, "JTG-RGB — Apply color", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 }
