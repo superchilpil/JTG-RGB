@@ -50,20 +50,20 @@ public sealed class OpenRgbSdkClient : IAsyncDisposable
                 await SendPacketAsync(0, SetClientName, Encoding.UTF8.GetBytes("JTG-RGB\0"), cancellationToken);
                 await SendPacketAsync(0, RequestProtocolVersion, UInt32Bytes(ClientProtocolVersion), cancellationToken);
 
-                try
+                using (var protocolTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
-                    var response = await ReadPacketAsync(cancellationToken).WaitAsync(TimeSpan.FromMilliseconds(900), cancellationToken);
-                    _protocolVersion = response.Id == RequestProtocolVersion && response.Payload.Length >= 4
-                        ? (int)ReadUInt32(response.Payload, 0)
-                        : 0;
-                }
-                catch (TimeoutException)
-                {
-                    _protocolVersion = 0;
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    _protocolVersion = 0;
+                    protocolTimeout.CancelAfter(TimeSpan.FromMilliseconds(900));
+                    try
+                    {
+                        var response = await ReadPacketAsync(protocolTimeout.Token);
+                        _protocolVersion = response.Id == RequestProtocolVersion && response.Payload.Length >= 4
+                            ? (int)ReadUInt32(response.Payload, 0)
+                            : 0;
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        _protocolVersion = 0;
+                    }
                 }
 
                 if (_protocolVersion > ClientProtocolVersion) _protocolVersion = (int)ClientProtocolVersion;
